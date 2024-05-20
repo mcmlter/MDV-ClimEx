@@ -23,8 +23,8 @@ ui <- fluidPage(
     bootswatch = "superhero"),
   # Application Title
   titlePanel(title = div(img(src = "https://mcm.lternet.edu/sites/default/files/MCM_white_logo60x50.png", height="5%", width = "5%"), 
-                         "MCM-LTER data viewer")),
-  helpText("McMurdo Dry Valleys Long-Term Ecological Research"),
+                         "MEVA: Meteorological Extremes Visualization Application")),
+  helpText("McMurdo Dry Valleys Long Term Ecological Research"),
   
   sidebarLayout(
     sidebarPanel(
@@ -367,7 +367,7 @@ server <- function(input, output) {
   
   # Use metPacks() to update options in the Parameter of Choice Dropdown
   observeEvent(input$input.met, {
-    updateSelectInput(inputId = "input.pack", choices = metPacks()) # Whenever the input met changes, update the choices of available packages using metPacks()
+    updateSelectInput(inputId = "input.pack", choices = metPacks(),) # Whenever the input met changes, update the choices of available packages using metPacks()
   })
   
 
