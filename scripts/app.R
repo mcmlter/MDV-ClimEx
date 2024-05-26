@@ -23,8 +23,8 @@ ui <- fluidPage(
     bootswatch = "superhero"),
   # Application Title
   titlePanel(title = div(img(src = "https://mcm.lternet.edu/sites/default/files/MCM_white_logo60x50.png", height="5%", width = "5%"), 
-                         "MEVA: Meteorological Extremes Visualization Application")),
-  helpText("McMurdo Dry Valleys Long Term Ecological Research"),
+                         "MDV EXCITE")),
+  helpText("McMurdo Data Viewer for Extreme Climate event IdenTification and Exploration"),
   
   sidebarLayout(
     sidebarPanel(
@@ -43,19 +43,15 @@ ui <- fluidPage(
                                                      "Commonwealth Glacier",
                                                      "Howard Glacier"),
                                  "High Altitude Sites" = c("Friis Hills",
-                                                           "Mt. Fleming")),
-                  selected = "Lake Bonney"),
+                                                           "Mt. Fleming"))),
       selectInput(inputId = "input.pack", "Package of Interest", 
-                  choices = NULL, 
-                  selected = "Air Temperature"),
+                  choices = NULL),
       selectInput(inputId = "input.variable", "Variable of Interest", 
-                  choices = NULL, 
-                  selected = "Air Temperature (°C) at Three Meters"),
+                  choices = NULL),
       selectInput(inputId = "input.timescale", "Timescale",
                   choices = c("Daily",
                               "Monthly",
-                              "Seasonally"),
-                  selected = "Daily"),
+                              "Seasonally")),
       radioButtons(inputId = "input.plotType", "Plot Type",
                   choices = c("Standard",
                               "Historical Comparison")),
@@ -241,7 +237,7 @@ server <- function(input, output) {
                                          "Soil Moisture",
                                          "Soil Temperature",
                                          "Snow Height",
-                                         "Surface Elev. Change",
+                                         "Surface elevation Change",
                                          "Surface Elevation Change",
                                          "Ultraviolet Radiation",
                                          "Onyx River Water Temperature",
@@ -335,7 +331,7 @@ server <- function(input, output) {
                                      "Snow Height (cm)",
                                      "Incoming Ultraviolet-A Radiation (W/m^2)",
                                      "Incoming Ultraviolet-A Radiation (W/m^2)",
-                                     "Surface Height Change (cm)",
+                                     "Surface height Change (cm)",
                                      "Surface Height Change (cm)",
                                      "Average UV (W/m^2)",
                                      "Maximum UV (W/m^2)",
@@ -367,7 +363,7 @@ server <- function(input, output) {
   
   # Use metPacks() to update options in the Parameter of Choice Dropdown
   observeEvent(input$input.met, {
-    updateSelectInput(inputId = "input.pack", choices = metPacks(),) # Whenever the input met changes, update the choices of available packages using metPacks()
+    updateSelectInput(inputId = "input.pack", choices = metPacks()) # Whenever the input met changes, update the choices of available packages using metPacks()
   })
   
 
@@ -396,9 +392,16 @@ server <- function(input, output) {
     return(b)
   })
   
-  # Use varMatchTable and packVars to update options in the "Variable of Choice" dropdown with layperson terms for the available variables
+  # Use varMatchTable and packVars to update options in the "Variable of Interest" dropdown with layperson terms for the available variables
   
   observeEvent(input$input.pack, {
+    updateSelectInput(inputId = "input.variable", 
+                      choices = packVars())
+  })
+  
+  # Update options in the "Variable of Interest dropdown if a different met station is chosen
+  
+  observeEvent(input$input.met, {
     updateSelectInput(inputId = "input.variable", 
                       choices = packVars())
   })
@@ -453,11 +456,17 @@ server <- function(input, output) {
     
     # Choose which cleaned data to pull based on specified met, pack, variable, and timescale for the comparison plot
     if (input$input.timescale == "Seasonally") {
-      data <- read_csv(str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.seasonal.csv"))
+      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.seasonal.csv")
+      req(file.exists(filePath))
+      data <- read_csv(filePath)
     } else if (input$input.timescale == "Monthly") {
-      data <- read_csv(str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.monthly.csv"))
+      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.monthly.csv")
+      req(file.exists(filePath))
+      data <- read_csv(filePath)
     } else if (input$input.timescale == "Daily") {
-      data <- read_csv(str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.daily.csv"))
+      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.daily.csv")
+      req(file.exists(filePath))
+      data <- read_csv(filePath)
     }
     
     return(data)
@@ -488,11 +497,17 @@ server <- function(input, output) {
     
     # Choose which cleaned data to pull based on specified met, pack, variable, and timescale
     if (input$input.timescale == "Seasonally") {
-      histData <- read_csv(str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.seasonalHist.csv")) 
+      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.seasonalHist.csv")
+      req(file.exists(filePath))
+      histData <- read_csv(filePath) 
     } else if (input$input.timescale == "Monthly") {
-      histData <- read_csv(str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.monthlyHist.csv"))
+      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.monthlyHist.csv")
+      req(file.exists(filePath))
+      histData <- read_csv(filePath)
     } else if (input$input.timescale == "Daily") {
-      histData <- read_csv(str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.dailyHist.csv"))
+      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.dailyHist.csv")
+      req(file.exists(filePath))
+      histData <- read_csv(filePath)
     }
     return(histData)
     
@@ -663,6 +678,9 @@ server <- function(input, output) {
     # Store met name
     metName <- input$input.met
     
+    # Store number of years included
+    nVal <- length(uniqYears())
+    
     # Store chosen comparison year
     chosenYear <- as.character(input$input.chosenYear)
     
@@ -815,7 +833,7 @@ server <- function(input, output) {
                 type = "scatter", 
                 line = list(color="black"),
                 mode = "lines", 
-                name = "Historical Average",
+                name = str_glue("Historical Average (n = {nVal} years)"),
                 hovertemplate = '%{y}') %>% 
       
       # Add a line trace for the chosen variable over the chosen timescale during the year of choice
@@ -848,6 +866,7 @@ server <- function(input, output) {
       )
     
   })
+
   
   # Render Wind Rose Plot
   
