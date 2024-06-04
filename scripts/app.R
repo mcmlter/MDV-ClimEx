@@ -22,9 +22,8 @@ ui <- fluidPage(
   theme = bslib::bs_theme(
     bootswatch = "superhero"),
   # Application Title
-  titlePanel(title = div(img(src = "https://mcm.lternet.edu/sites/default/files/MCM_white_logo60x50.png", height="5%", width = "5%"), 
-                         "MDV EXCITE")),
-  helpText("McMurdo Data Viewer for Extreme Climate event IdenTification and Exploration"),
+  titlePanel(title = div(img(src = "https://mcm.lternet.edu/sites/default/files/MCM_white_logo60x50.png", height="5%", width = "5%"), "MCM ClimEx Data Viewer")),
+  helpText("McMurdo LTER Climate Extremes Data Viewer"),
   
   sidebarLayout(
     sidebarPanel(
@@ -60,7 +59,8 @@ ui <- fluidPage(
                   tabPanel(title = "Standard"),
                   tabPanel(title = "Historical Comparison",
                            selectInput(inputId = "input.chosenYear", "Choose Year to Plot",
-                                       choices = NULL)),
+                                       choices = NULL),
+                           textOutput("sigma")),
                   tabPanel(title = "Wind Rose",
                            textOutput("windDataInfo"))
       )
@@ -204,51 +204,24 @@ server <- function(input, output) {
   
   # Table of possible packages and their laynames
   packMatchTable <- data.frame(packs = c("AIRT",
-                                         "AIRT3ASP",
                                          "RADN",
-                                         "SURFTEMP",
                                          "WIND",
-                                         "ICET",
                                          "PRESSTA",
-                                         "ICESURFCHANGE",
                                          "RH",
-                                         "WVAPD",
-                                         "PPT",
                                          "SOILM",
-                                         "SOILT",
-                                         "SNOWHT",
-                                         "SURFCHANGE",
-                                         "SURF",
-                                         "UV",
-                                         "ONYXT",
-                                         "DEPTH",
-                                         "ICESURF"),
+                                         "SOILT"),
                                names = c("Air Temperature",
-                                         "Aspirated Air Temperature",
                                          "Solar Radiation",
-                                         "Ice Surface Temp.",
                                          "Wind Direction and Speed",
-                                         "Ice Temperature",
                                          "Barometric Pressure",
-                                         "Ice Surface Change",
                                          "Relative Humidity",
-                                         "Water Vapor Density",
-                                         "Precipitation",
                                          "Soil Moisture",
-                                         "Soil Temperature",
-                                         "Snow Height",
-                                         "Surface elevation Change",
-                                         "Surface Elevation Change",
-                                         "Ultraviolet Radiation",
-                                         "Onyx River Water Temperature",
-                                         "Ice Surface Change",
-                                         "Ice Surface Temperature"))
+                                         "Soil Temperature"))
   
   # Table of possible variables and their laynames 
   varMatchTable <- data.frame(vars = c("airt2m",
                                        "airt1m",
                                        "airt3m",
-                                       "airt3asp",
                                        "swradin",
                                        "swradout",
                                        "thmir",
@@ -256,94 +229,51 @@ server <- function(input, output) {
                                        "rh2m",
                                        "rh1m",
                                        "rh3m",
-                                       "surftemp",
                                        "wdir",
                                        "wdirstd",
                                        "wspd",
-                                       "wspdmax",
-                                       "wspdmin",
-                                       "airtmax",
-                                       "airtmin",
-                                       "icesurfchange_cm",
-                                       "dist_to_surface",
                                        "lwradin",
                                        "lwradin2",
                                        "lwradout",
                                        "lwradout2",
                                        "rh",
-                                       "airtdel3m1",
-                                       "ppt",
                                        "par",
                                        "soilm",
                                        "soilt",
                                        "soilt0cm",
                                        "soilt5cm",
                                        "soilt10cm",
-                                       "pressta",
-                                       "snowht",
-                                       "uva",
-                                       "uvb",
-                                       "surfchange_cm",
-                                       "surfelevchange",
-                                       "uv_avg",
-                                       "uv_max",
-                                       "uv_min",
-                                       "voltage",
-                                       "surf_change",
-                                       "ONYXT",
-                                       "WVAPD",
-                                       "airt1_3m"),
-                           names = c("Air Temperature (°C) at Two Meters",
-                                     "Air Temperature (°C) at One Meter",
-                                     "Air Temperature (°C) at Three Meters",
-                                     "Aspirated Air Temperature (°C) at 3 Meters",
+                                       "pressta"),
+                           names = c("Air Temperature (°C) at 2m",
+                                     "Air Temperature (°C) at 1m",
+                                     "Air Temperature (°C) at 3m",
                                      "Incoming Short Wave Radiation (W/m^2)",
                                      "Outgoing Short Wave Radiation (W/m^2)",
                                      "Thermal infrared surface temperature (°C)",
                                      "Net Radiation (W/m^2)",
-                                     "Relative Humidity (%) at 2 meters",
-                                     "Relative Humidity (%) at 1 meters",
-                                     "Relative Humidity (%) at 3 meters",
-                                     "Ice Surface Temperature (°C)",
+                                     "Relative Humidity (%) at 2m",
+                                     "Relative Humidity (%) at 1m",
+                                     "Relative Humidity (%) at 3m",
                                      "Wind Direction (° from north)",
                                      "Standard deviation of wind direction (° from north)",
                                      "Wind Speed (m/s)",
-                                     "Maximum Wind Speed (m/s)",
-                                     "Minimum Wind Speed (m/s)",
-                                     "Maximum Air Temperature (°C)",
-                                     "Minimum Air Temperature (°C)",
-                                     "Ice Surface Change (cm)",
-                                     "Distance from Sensor to Surface (m)",
                                      "Incoming Longwave Radiation (W/m^2)",
                                      "Incoming Longwave Radiation Method 2 (W/m^2)",
                                      "Outgoing Longwave Radiation (W/m^2)	",
                                      "Outgoing Longwave Radiation Method 2 (W/m^2)",
                                      "Relative Humidity (%)",
-                                     "Difference Between 3m and 1m Air Temperature (°C)",
-                                     "Unevaporated Precipitation (mm)",
                                      "Photosynthetically Active Radiation (W/m^2)",
                                      "Soil Moisture (%)",
                                      "Soil Temperature (°C)",
-                                     "Soil Temperature at 0 cm Depth (°C)",
-                                     "Soil Temperature at 5 cm Depth (°C)",
-                                     "Soil Temperature at 10 cm Depth (°C)",
-                                     "Atmospheric Pressure (mb)",
-                                     "Snow Height (cm)",
-                                     "Incoming Ultraviolet-A Radiation (W/m^2)",
-                                     "Incoming Ultraviolet-A Radiation (W/m^2)",
-                                     "Surface height Change (cm)",
-                                     "Surface Height Change (cm)",
-                                     "Average UV (W/m^2)",
-                                     "Maximum UV (W/m^2)",
-                                     "Minimum UV (W/m^2)",
-                                     "Voltage (V)",
-                                     "Surface Height Change (cm)",
-                                     "Onyx River Temperature (°C)",
-                                     "Water Vapor Density (g/m^3)",
-                                     "3m-1m Air Temperature Differential (°C)")
+                                     "Soil Temperature at 0cm Depth (°C)",
+                                     "Soil Temperature at 5cm Depth (°C)",
+                                     "Soil Temperature at 10cm Depth (°C)",
+                                     "Atmospheric Pressure (mb)")
   )
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+  #### Reactive Functions #### 
+  
   # Get the list of packages available from the chosen met station
   metPacks <- reactive({
     a <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
@@ -359,14 +289,7 @@ server <- function(input, output) {
       pull(names)
     return(c) # Return the names of packages available from the input met
   })
-
   
-  # Use metPacks() to update options in the Parameter of Choice Dropdown
-  observeEvent(input$input.met, {
-    updateSelectInput(inputId = "input.pack", choices = metPacks()) # Whenever the input met changes, update the choices of available packages using metPacks()
-  })
-  
-
   # Get variables contained in the file of the chosen parameter of the chosen met station
   
   # Read in the CSV of the corresponding met-package combination
@@ -392,30 +315,34 @@ server <- function(input, output) {
     return(b)
   })
   
-  # Use varMatchTable and packVars to update options in the "Variable of Interest" dropdown with layperson terms for the available variables
+  # Get the abbreviation of the chosen input variable
+  varAbv <- reactive({
+    a <- varMatchTable %>% 
+      filter(names == input$input.variable) %>% 
+      pull(vars)
+    return(a)
+  })
+
+  #### Event Observations ####
   
+  # Update choices when a new met is selected
+  observeEvent(input$input.met, {
+    updateSelectInput(inputId = "input.pack", 
+                      choices = metPacks()) # Update the choices of available packages using metPacks()
+    updateSelectInput(inputId = "input.variable", 
+                      choices = packVars()) # Update the choices of variables using packVars()
+    
+  })
+  
+
+  # Update choices when a new pack is selected
   observeEvent(input$input.pack, {
     updateSelectInput(inputId = "input.variable", 
                       choices = packVars())
   })
   
-  # Update options in the "Variable of Interest dropdown if a different met station is chosen
   
-  observeEvent(input$input.met, {
-    updateSelectInput(inputId = "input.variable", 
-                      choices = packVars())
-  })
-  
-  
-  # Get the abbreviation of the chosen input variable
-  varAbv <- reactive({
-    a <- varMatchTable %>% 
-         filter(names == input$input.variable) %>% 
-         pull(vars)
-    return(a)
-  })
-  
-  # Use the chosen variable to update options in the "Plot Type" dropdown
+  # Update plot types when a variable is chosen
   
   observeEvent(input$input.variable, {
     # If wind direction or speed are selected, update the select plot type input to include "Wind Rose"
@@ -767,23 +694,23 @@ server <- function(input, output) {
     # Create Plot
     plot_ly() %>%
       
-      # Add a line trace for 3 SD above historical average
+      # Add a line trace for 3 σ above historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg + 3*histAvgs$sdVal,
                 type = "scatter", 
                 mode = "lines",
                 line = list(color = 'transparent'),
-                name = "3 SD Above Historical Average",
+                name = "3σ above historical average",
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
-      # Add a line trace for 3 SD below historical average
+      # Add a line trace for 3 σ below historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg - 3*histAvgs$sdVal,
                 type = "scatter", 
                 mode = "lines", 
                 fill = "tonexty", fillcolor='rgba(0,100,120,0.2)', line = list(color = 'transparent'),
-                name = "3 SD Below Historical Average",
+                name = "3σ below historical average",
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
@@ -793,7 +720,7 @@ server <- function(input, output) {
                 type = "scatter", 
                 mode = "lines",
                 line = list(color = 'transparent'),
-                name = "2 SD Above Historical Average",
+                name = "2σ above historical average",
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
@@ -803,7 +730,7 @@ server <- function(input, output) {
                 type = "scatter", 
                 mode = "lines", 
                 fill = "tonexty", fillcolor='rgba(0,100,100,0.2)', line = list(color = 'transparent'),
-                name = "2 SD Below Historical Average",
+                name = "2σ below historical average",
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
@@ -813,7 +740,7 @@ server <- function(input, output) {
                 type = "scatter", 
                 mode = "lines", 
                 line = list(color = 'transparent'),
-                name = "1 SD Above Historical Average",
+                name = "1σ above historical average",
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
@@ -823,7 +750,7 @@ server <- function(input, output) {
                 type = "scatter", 
                 mode = "lines", 
                 fill = "tonexty", fillcolor='rgba(0,100,80,0.2)', line = list(color = 'transparent'),
-                name = "1 SD Below Historical Average",
+                name = "1σ below historical average",
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
@@ -833,7 +760,7 @@ server <- function(input, output) {
                 type = "scatter", 
                 line = list(color="black"),
                 mode = "lines", 
-                name = str_glue("Historical Average (n = {nVal} years)"),
+                name = str_glue("Historical Average \n(n = {nVal} years)"),
                 hovertemplate = '%{y}') %>% 
       
       # Add a line trace for the chosen variable over the chosen timescale during the year of choice
@@ -846,7 +773,7 @@ server <- function(input, output) {
                 mode = "lines",
                 line = list(color="brown"),
                 name = chosenYear,
-                hovertemplate = '%{y}, %{text} SDs from the historical average') %>% 
+                hovertemplate = '%{y}, %{text} σ’s from the historical average') %>% 
       
      
       
@@ -865,6 +792,12 @@ server <- function(input, output) {
              hovermode = "x unified"
       )
     
+  })
+  
+  # Render sigma definition
+  
+  output$sigma <- renderText({
+    "σ is the lowercase Greek letter sigma, which stands for standard deviation."
   })
 
   

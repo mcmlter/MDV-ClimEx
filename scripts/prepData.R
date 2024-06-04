@@ -12,9 +12,6 @@
 # Author: Gavin Wagner
 
 # Start Date: 10/17/2023
-# Finalized: 3/19/2024
-
-
 
 #### Loading Required Packages ####
 library(tidyverse)
@@ -126,18 +123,15 @@ getPackageInfo <- function(metID) {
 ##### Fetching Met Data #####
 
 # # Test Value
-# met <- "BOYM"
+# metAbv <- "BOYM"
 
 # Begin advanced data pull function
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-advDataPull <- function(met) {
+advDataPull <- function(metAbv) {
   
   # First pull pertinent info about the specified met
   # Get general package info
-  packageInfo <- getPackageInfo(met)
-  
-  # Store met abbreviation
-  metAbv <- packageInfo$metAbv
+  packageInfo <- getPackageInfo(metAbv)
   
   # Create subdirectory for metData if there is not already one
   if (!file.exists("../data/met")) {
@@ -152,12 +146,23 @@ advDataPull <- function(met) {
   # Get the included parameters and their entityIDs
   entities <- read_data_entity_names(packageInfo$packageID)
   
-  # Get the names of the entities included, excluding WVAPD, ONYXT, ICET because these files have different structures. Exclude PPT because precipitation data is incomplete.
-  entityNames <- entities$entityName[!str_detect(entities$entityName, "WVAPD") & !str_detect(entities$entityName, "ONYXT") & !str_detect(entities$entityName, "ICET") & !str_detect(entities$entityName, "PPT")]
+  
+  # Get the names of the entities to be included in the application
+  entityNames <- entities %>% 
+    select(entityName) %>% 
+    mutate(entityName = gsub(".*_", "", entityName)) %>% # Subset everything after the underscore
+    filter(entityName == "AIRT" |
+             entityName == "RADN" |
+             entityName == "WIND" |
+             entityName == "PRESSTA" |
+             entityName == "RH" |
+             entityName == "SOILM" |
+             entityName == "SOILT") %>% 
+    pull(entityName)
   
   # Cycle through each entity and create subdirectories for each met-entity combo if they don't already exist in the parent met directory
   for (entity in entityNames) {
-    subDir <- str_glue("../data/met/{metAbv}/{entity}")
+    subDir <- str_glue("../data/met/{metAbv}/{metAbv}_{entity}")
     if (!file.exists(subDir)) {
       dir.create(file.path(subDir))
     }
@@ -169,7 +174,7 @@ advDataPull <- function(met) {
     
   
   # Store the location where the revision file should be
-  revFile <-str_glue("../data/met/{metAbv}/{met}latestRevision.csv") 
+  revFile <-str_glue("../data/met/{metAbv}/{metAbv}latestRevision.csv") 
   
   #  Check if revision file exists.
   if (file.exists(revFile)) {
@@ -183,7 +188,7 @@ advDataPull <- function(met) {
   }
   
   # # Test value
-  # entity <- "BOYM_AIRT"
+  # entity <- "AIRT"
   
   # Only run if the latest revision doesn't match the stored data's revision
   if (storedRevision$rev != latestRevision$rev) {
@@ -195,11 +200,41 @@ advDataPull <- function(met) {
     for (entity in entityNames) {
         
       # Read in the entity's data
-      rawData <- read_data_entity(packageInfo$packageID, entities[entities$entityName == str_glue("{entity}"), "entityId"])
-      entityData <- read_csv(file = rawData)
+      rawData <- read_data_entity(packageInfo$packageID, 
+                                  entities[entities$entityName == str_glue("{metAbv}_{entity}"), "entityId"])
+      
+     
+      # Read raw entity data, only including pertinent variables
+      entityData <- read_csv(file = rawData) %>% 
+        select(any_of(c("date_time",
+                        "airt2m",
+                        "airt1m",
+                        "airt3m",
+                        "swradin",
+                        "swradout",
+                        "thmir",
+                        "netrad",
+                        "rh2m",
+                        "rh1m",
+                        "rh3m",
+                        "wdir",
+                        "wdirstd",
+                        "wspd",
+                        "lwradin",
+                        "lwradin2",
+                        "lwradout",
+                        "lwradout2",
+                        "rh",
+                        "par",
+                        "soilm",
+                        "soilt",
+                        "soilt0cm",
+                        "soilt5cm",
+                        "soilt10cm",
+                        "pressta")))
       
       # Store the file path for the met_entity data
-      met_entityFile <- str_glue("../data/met/{metAbv}/{entity}/{entity}.csv")
+      met_entityFile <- str_glue("../data/met/{metAbv}/{metAbv}_{entity}/{metAbv}_{entity}.csv")
       
       # Write the complete raw entity data to a csv that will take the name met_entity.csv
       write_csv(entityData, met_entityFile)
@@ -215,19 +250,34 @@ advDataPull <- function(met) {
       # Cycle through each variables contained in the entity data set:
       for (var in variables) {
         # Create directories for each met-entity-variable combo if they don't already exist in the parent met-entity directory
-        varDir <- str_glue("../data/met/{metAbv}/{entity}/{var}")
+        varDir <- str_glue("../data/met/{metAbv}/{metAbv}_{entity}/{var}")
         if (!file.exists(varDir)) {
           dir.create(file.path(varDir))
         } else {
           print("Sub Directory Exists")
         }
         
-        # Select the data pertinent to the current variable
+        # Select the data pertinent to the current variable, parse the date time column.
         varData <- entityData %>% 
           select(date_time, all_of(var)) %>% 
-          mutate(date_time = date(mdy_hm(date_time))) %>% 
+          mutate(date_time = date(mdy_hm(date_time)))
+        
+        # Remove days that have more than 10% of the data missing
+        varData <- varData %>% 
+          group_by(date_time) %>%
+          summarise(naCount = sum(is.na(.data[[var]])),
+                    entryCount = n(),
+                    naProp = naCount/entryCount) %>%
+          select(date_time, naProp) %>%
+          right_join(varData, by = "date_time") %>% 
+          filter(naProp < 0.1) %>%
+          select(!naProp)
+        
+        
+        # Create daily summaries of the mean value of the variable over the day
+        varData <- varData %>% 
           group_by(date_time) %>% 
-          summarize(meanVal = mean(.data[[var]])) # Can't name the summary column with var value of current loop
+          summarize(meanVal = mean(.data[[var]], na.rm = TRUE)) 
         
         # Get data range
         startDate <- floor_date(head(varData$date_time,1), unit = "day")
@@ -239,7 +289,7 @@ advDataPull <- function(met) {
         # Make this sequence the date column in a template data frame
         template_df <- data.frame(date_time = date(date_seq))
         
-        # Backfill missing dates by merging the template to the raw data. Add columns for year, yearmonth, day of year, and season. Arrange columns
+        # Backfill missing dates with NA's by merging the template to the raw data. Add columns for year, yearmonth, day of year, and season. Arrange columns
         varData <- full_join(template_df, varData)%>%
           mutate(year = year(date_time),
                  month = month(date_time),
@@ -254,7 +304,8 @@ advDataPull <- function(met) {
         
         # Create "fakedate" column, a column with the dates correct except the year is 2020. Helps plot multiple years on the same x axis.
         varData <- varData %>%
-          mutate(fakedate = update(date_time, year = 2020))
+          mutate(fakedate = update(date_time, year = 2020),
+                 .after = "date_time")
         
         # Create special plotting columns for x axis labeling
         varData <- varData %>% 
@@ -414,7 +465,6 @@ metAbvs = c(
 for (met in metAbvs) {
   advDataPull(met)
 }
-
 
 
 
