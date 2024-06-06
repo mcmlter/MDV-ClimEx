@@ -22,8 +22,8 @@ ui <- fluidPage(
   theme = bslib::bs_theme(
     bootswatch = "superhero"),
   # Application Title
-  titlePanel(title = div(img(src = "https://mcm.lternet.edu/sites/default/files/MCM_white_logo60x50.png", height="5%", width = "5%"), "MCM ClimEx Data Viewer")),
-  helpText("McMurdo LTER Climate Extremes Data Viewer"),
+  titlePanel(title = div(img(src = "https://mcm.lternet.edu/sites/default/files/MCM_white_logo60x50.png", height="5%", width = "5%"), "ClimEx Data Viewer")),
+  helpText("McMurdo Dry Valleys LTER Climate Extremes Data Viewer"),
   
   sidebarLayout(
     sidebarPanel(
@@ -62,8 +62,8 @@ ui <- fluidPage(
                                        choices = NULL),
                            textOutput("sigma")),
                   tabPanel(title = "Wind Rose",
-                           textOutput("windDataInfo"))
-      )
+                           textOutput("windDataInfo"))),
+      textOutput("zoom")
     ),
     
 
@@ -773,7 +773,7 @@ server <- function(input, output) {
                 mode = "lines",
                 line = list(color="brown"),
                 name = chosenYear,
-                hovertemplate = '%{y}, %{text} σ’s from the historical average') %>% 
+                hovertemplate = '%{y}, %{text}σ from the historical average') %>% 
       
      
       
@@ -845,11 +845,13 @@ server <- function(input, output) {
     "The wind rose is presented as an aggregate of the entire existing record of wind speed and direction data at the chosen met station."
   )
   
-  # Render "map coming soon" text in map tab
+  # Render "Use the tools in the top right corner of the plot to navigate, download, or revert plot. Click and drag to zoom in on data."
   
-  output$comingSoon <- renderText(
-    "Map Coming Soon!"
+  output$zoom <- renderText(
+    "Use the tools in the top right corner of the plot to navigate, download, or revert plot. Click and drag to zoom in on data."
   )
+  
+  
   
   
   
