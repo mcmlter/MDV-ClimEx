@@ -36,28 +36,28 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput(inputId = "input.met",
                   label = "Choose Meteorological Station",
-                  choices = list("Terrestrial Sites" = c("Explorers Cove",
-                                                         "Lake Fryxell",
-                                                         "Lake Hoare",
-                                                         "Lake Bonney",
-                                                         "Lake Brownworth",
-                                                         "Lake Vanda",
-                                                         "Lake Vida",
-                                                         "Miers Valley"),
+                  choices = list("Valley Floor Sites" = c("Explorers Cove",
+                                                          "Lake Fryxell",
+                                                          "Lake Hoare",
+                                                          "Lake Bonney",
+                                                          "Lake Brownworth",
+                                                          "Lake Vanda",
+                                                          "Lake Vida",
+                                                          "Miers Valley"),
                                  "Glacial Sites" = c("Taylor Glacier",
                                                      "Canada Glacier",
                                                      "Commonwealth Glacier",
                                                      "Howard Glacier"),
                                  "High Altitude Sites" = c("Friis Hills",
                                                            "Mt. Fleming"))),
-      selectInput(inputId = "input.param", "Parameter of Interest", 
+      selectInput(inputId = "input.param", "Parameter Suite of Interest", 
                   choices = NULL),
       selectInput(inputId = "input.variable", "Variable of Interest", 
                   choices = NULL),
       selectInput(inputId = "input.timescale", "Timescale",
                   choices = c("Daily",
                               "Monthly",
-                              "Seasonally")),
+                              "Seasonal")),
       radioButtons(inputId = "input.plotType", "Plot Type",
                   choices = c("Standard",
                               "Historical Comparison")),
@@ -104,7 +104,9 @@ ui <- fluidPage(
   ),
   # Footer
   hr(),
-  p("This material is based upon work supported by the National Science Foundation under Cooperative Agreement #OPP-2224760 and  NSF OPP-1637708, MCM LTER. Any opinions, findings, conclusions, or recommendations expressed in the material are those of the author(s) and do not necessarily reflect the views of the National Science Foundation.", 
+  p("This material is based upon work supported by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term 
+     Ecological Research (MCM LTER) program, most recently #OPP-1637708 and #OPP-2224760. Any opinions, findings, conclusions, or recommendations 
+     expressed here are those of the author(s) and do not necessarily reflect the views of the National Science Foundation.", 
     align="left", style = "font-size:11px; color = white")
 )
 
@@ -168,7 +170,7 @@ server <- function(input, output) {
     metInfo <- metInfo %>%
       filter(metAbv == metID) %>%
       mutate(scope = scope, .before = "identifier") %>%
-      mutate(revision = list_data_entity_revisions(scope,
+      mutate(revision = list_data_package_revisions(scope,
                                                    identifier,
                                                    filter = "newest"),
              parameterID = paste(scope, identifier, revision, sep = '.'))
@@ -389,7 +391,7 @@ server <- function(input, output) {
       pull(vars)
     
     # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale for the comparison plot
-    if (input$input.timescale == "Seasonally") {
+    if (input$input.timescale == "Seasonal") {
       filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonal.csv")
       req(file.exists(filePath))
       data <- read_csv(filePath)
@@ -430,7 +432,7 @@ server <- function(input, output) {
       pull(vars)
     
     # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale
-    if (input$input.timescale == "Seasonally") {
+    if (input$input.timescale == "Seasonal") {
       filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonalHist.csv")
       req(file.exists(filePath))
       histData <- read_csv(filePath) 
@@ -543,8 +545,8 @@ server <- function(input, output) {
       timeSeries <- "Monthly"
       orderArray <- data$yearmonth
       
-      # If "Seasonally" timescale is chosen, the pertinent time column is "yearSeason".
-    } else if(input$input.timescale == "Seasonally") {
+      # If "Seasonal" timescale is chosen, the pertinent time column is "yearSeason".
+    } else if(input$input.timescale == "Seasonal") {
       timescale <- "yearseason"
       timeSeries <- "Seasonal"
       orderArray <- data$yearseason
@@ -668,8 +670,8 @@ server <- function(input, output) {
       histAvgs <- histAvgs%>% 
         mutate(monthAbb = month.abb[month], .before = histAvg)
       
-      # If "Seasonally" timescale is chosen, the pertinent time column is the name of the season, "season".
-    } else if(input$input.timescale == "Seasonally") {
+      # If "Seasonal" timescale is chosen, the pertinent time column is the name of the season, "season".
+    } else if(input$input.timescale == "Seasonal") {
       
       # Set timescale
       timescale <- "season"
@@ -701,7 +703,7 @@ server <- function(input, output) {
     # Create Plot
     plot_ly() %>%
       
-      # Add a line trace for 3 σ above historical average
+      # Add a line trace for 3σ above historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg + 3*histAvgs$sdVal,
                 type = "scatter", 
@@ -711,7 +713,7 @@ server <- function(input, output) {
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
-      # Add a line trace for 3 σ below historical average
+      # Add a line trace for 3σ below historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg - 3*histAvgs$sdVal,
                 type = "scatter", 
@@ -721,7 +723,7 @@ server <- function(input, output) {
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
-      # Add a line trace for 2 SD above historical average
+      # Add a line trace for 2σ above historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg + 2*histAvgs$sdVal,
                 type = "scatter", 
@@ -731,7 +733,7 @@ server <- function(input, output) {
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
-      # Add a line trace for 2 SD below historical average
+      # Add a line trace for 2 σ below historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg - 2*histAvgs$sdVal,
                 type = "scatter", 
@@ -741,7 +743,7 @@ server <- function(input, output) {
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
-      # Add a line trace for 1 SD above historical average
+      # Add a line trace for 1 σ above historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg + histAvgs$sdVal,
                 type = "scatter", 
@@ -751,7 +753,7 @@ server <- function(input, output) {
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
-      # Add a line trace for 1 SD below historical average
+      # Add a line trace for 1σ below historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg - histAvgs$sdVal,
                 type = "scatter", 
