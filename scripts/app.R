@@ -286,6 +286,7 @@ server <- function(input, output) {
     c <- paramMatchTable %>% # Match the parameter IDs to layperson names
       filter(params %in% b,
              params != "WVAPD",
+             params != "SOILM",
              params != "ONYXT",
              params != "PPT",
              params != "ICET") %>% 
