@@ -224,7 +224,6 @@ advDataPull <- function(metAbv) {
                         "airt3m",
                         "swradin",
                         "swradout",
-                        "thmir",
                         "netrad",
                         "rh2m",
                         "rh1m",
