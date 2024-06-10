@@ -229,7 +229,6 @@ advDataPull <- function(metAbv) {
                         "rh1m",
                         "rh3m",
                         "wdir",
-                        "wdirstd",
                         "wspd",
                         "lwradin",
                         "lwradin2",
