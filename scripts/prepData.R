@@ -168,7 +168,6 @@ advDataPull <- function(metAbv) {
            entityName == "WIND" |
            entityName == "PRESSTA" |
            entityName == "RH" |
-           entityName == "SOILM" |
            entityName == "SOILT") %>% 
     pull(entityName)
   
@@ -239,8 +238,6 @@ advDataPull <- function(metAbv) {
                         "lwradout2",
                         "rh",
                         "par",
-                        "soilm",
-                        "soilt",
                         "soilt0cm",
                         "soilt5cm",
                         "soilt10cm",
