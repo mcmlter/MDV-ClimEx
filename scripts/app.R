@@ -35,7 +35,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput(inputId = "input.met",
-                  label = "Choose Meteorological Station",
+                  label = "Meteorological Station",
                   choices = list("Valley Floor Sites" = c("Explorers Cove",
                                                           "Lake Fryxell",
                                                           "Lake Hoare",
@@ -213,19 +213,17 @@ server <- function(input, output) {
   
   # Table of possible parameter suites and their laynames
   paramMatchTable <- data.frame(params = c("AIRT",
-                                         "RADN",
-                                         "WIND",
-                                         "PRESSTA",
-                                         "RH",
-                                         "SOILM",
-                                         "SOILT"),
-                               names = c("Air Temperature",
-                                         "Solar Radiation",
-                                         "Wind Direction and Speed",
-                                         "Barometric Pressure",
-                                         "Relative Humidity",
-                                         "Soil Moisture",
-                                         "Soil Temperature"))
+                                           "PRESSTA",
+                                           "RH",
+                                           "RADN",
+                                           "WIND",
+                                           "SOILT"),
+                                names = c("Air Temperature",
+                                          "Barometric Pressure",
+                                          "Relative Humidity",
+                                          "Solar Radiation",
+                                          "Wind Direction and Speed",
+                                          "Soil Temperature"))
   
   # Table of possible variables and their laynames 
   varMatchTable <- data.frame(vars = c("airt2m",
