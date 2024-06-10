@@ -6,7 +6,14 @@
 #
 #    http://shiny.rstudio.com/
 #
+# Authors: Gavin P. Wagner (gavin.wagner@rutgers.edu), with contributions from Renée F. Brown (rfbrown@unm.edu)
+#
 
+#### Clear environment ####
+rm(list=ls(all=TRUE))
+
+
+#### Load Required Libraries ####
 library(shiny)
 library(tidyverse)
 library(zoo)
@@ -28,7 +35,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput(inputId = "input.met",
-                  label = "Choose Met Station",
+                  label = "Choose Meteorological Station",
                   choices = list("Terrestrial Sites" = c("Explorers Cove",
                                                          "Lake Fryxell",
                                                          "Lake Hoare",
@@ -43,7 +50,7 @@ ui <- fluidPage(
                                                      "Howard Glacier"),
                                  "High Altitude Sites" = c("Friis Hills",
                                                            "Mt. Fleming"))),
-      selectInput(inputId = "input.pack", "Package of Interest", 
+      selectInput(inputId = "input.param", "Parameter of Interest", 
                   choices = NULL),
       selectInput(inputId = "input.variable", "Variable of Interest", 
                   choices = NULL),
@@ -109,9 +116,9 @@ server <- function(input, output) {
   
   
   
-  #### Package Info Function ####
+  #### Parameter Info Function ####
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  getPackageInfo <- function(metID) {
+  getParameterInfo <- function(metID) {
     scope = "knb-lter-mcm"
     metInfo <- data.frame(
       met = c("Canada Glacier",
@@ -161,10 +168,10 @@ server <- function(input, output) {
     metInfo <- metInfo %>%
       filter(metAbv == metID) %>%
       mutate(scope = scope, .before = "identifier") %>%
-      mutate(revision = list_data_package_revisions(scope,
-                                                    identifier,
-                                                    filter = "newest"),
-             packageID = paste(scope, identifier, revision, sep = '.'))
+      mutate(revision = list_data_entity_revisions(scope,
+                                                   identifier,
+                                                   filter = "newest"),
+             parameterID = paste(scope, identifier, revision, sep = '.'))
     
     
     return(metInfo)
@@ -202,8 +209,8 @@ server <- function(input, output) {
                                          "FLMM",
                                          "TARM"))
   
-  # Table of possible packages and their laynames
-  packMatchTable <- data.frame(packs = c("AIRT",
+  # Table of possible parameter suites and their laynames
+  paramMatchTable <- data.frame(params = c("AIRT",
                                          "RADN",
                                          "WIND",
                                          "PRESSTA",
@@ -274,39 +281,39 @@ server <- function(input, output) {
 
   #### Reactive Functions #### 
   
-  # Get the list of packages available from the chosen met station
-  metPacks <- reactive({
+  # Get the list of parameter suites available from the chosen met station
+  metParams <- reactive({
     a <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
-    b <- word(read_data_entity_names(getPackageInfo(a)$packageID)[,"entityName"], 2, sep = "_") # Read package IDs in a specified met
-    c <- packMatchTable %>% # Match the package IDs to layperson names
-      filter(packs %in% b,
-             packs != "WVAPD",
-             packs != "ONYXT",
-             packs != "PPT",
-             packs != "ICET") %>% 
+    b <- word(read_data_entity_names(getParameterInfo(a)$parameterID)[,"entityName"], 2, sep = "_") # Read parameter IDs in a specified met
+    c <- paramMatchTable %>% # Match the parameter IDs to layperson names
+      filter(params %in% b,
+             params != "WVAPD",
+             params != "ONYXT",
+             params != "PPT",
+             params != "ICET") %>% 
       pull(names)
-    return(c) # Return the names of packages available from the input met
+    return(c) # Return the names of parameter suites available from the input met
   })
   
-  # Get variables contained in the file of the chosen parameter of the chosen met station
+  # Get variables contained in the file of the chosen parameter suite of the chosen met station
   
-  # Read in the CSV of the corresponding met-package combination
-  packData <- reactive({
+  # Read in the CSV of the corresponding met-parameter combination
+  paramData <- reactive({
     met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
-    pack <- packMatchTable %>% 
-      filter(names == input$input.pack) %>% 
-      pull(packs)
-    data <- read_csv(file = str_glue("../data/met/{met}/{met}_{pack}/{met}_{pack}.csv"))
+    param <- paramMatchTable %>% 
+      filter(names == input$input.param) %>% 
+      pull(params)
+    data <- read_csv(file = str_glue("../data/{met}/{met}_{param}/{met}_{param}.csv"))
     return(data)
   })
   
   # Get the laynames of the columns containing meteorological variables (the only numeric columns) from the rawData
-  packVars <- reactive({
-    a <- packData() %>% 
+  paramVars <- reactive({
+    a <- paramData() %>% 
       select(where(is.double)) %>% 
       colnames()
     b <- varMatchTable %>% 
@@ -325,20 +332,20 @@ server <- function(input, output) {
 
   #### Event Observations ####
   
-  # Update choices when a new met is selected
+  # Update choices when a new met station is selected
   observeEvent(input$input.met, {
-    updateSelectInput(inputId = "input.pack", 
-                      choices = metPacks()) # Update the choices of available packages using metPacks()
+    updateSelectInput(inputId = "input.param", 
+                      choices = metParams()) # Update the choices of available parameter suites using metParams()
     updateSelectInput(inputId = "input.variable", 
-                      choices = packVars()) # Update the choices of variables using packVars()
+                      choices = paramVars()) # Update the choices of variables using paramVars()
     
   })
   
 
-  # Update choices when a new pack is selected
-  observeEvent(input$input.pack, {
+  # Update choices when a new parameter suite is selected
+  observeEvent(input$input.param, {
     updateSelectInput(inputId = "input.variable", 
-                      choices = packVars())
+                      choices = paramVars())
   })
   
   
@@ -360,38 +367,38 @@ server <- function(input, output) {
   })
   
   
-  # Pull in the cleaned data from the chosen met, package, variable for the standard plot
+  # Pull in the cleaned data from the chosen meteorological station, parameter suite, variable for the standard plot
   
   standardData <- reactive({
     
     # Store chosen inputs as how they appear in the file name
     
-    # Met abbreviation
+    # Meteorological Station abbreviation
     met <- metMatchTable %>%
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
     
-    # Pack abbreviation
-    pack <- packMatchTable %>% 
-      filter(names == input$input.pack) %>% 
-      pull(packs)
+    # Parameter suite abbreviation
+    param <- paramMatchTable %>% 
+      filter(names == input$input.param) %>% 
+      pull(params)
     
     # Variable abbreviation
     varAbv <- varMatchTable %>% 
       filter(names == input$input.variable) %>% 
       pull(vars)
     
-    # Choose which cleaned data to pull based on specified met, pack, variable, and timescale for the comparison plot
+    # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale for the comparison plot
     if (input$input.timescale == "Seasonally") {
-      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.seasonal.csv")
+      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonal.csv")
       req(file.exists(filePath))
       data <- read_csv(filePath)
     } else if (input$input.timescale == "Monthly") {
-      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.monthly.csv")
+      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.monthly.csv")
       req(file.exists(filePath))
       data <- read_csv(filePath)
     } else if (input$input.timescale == "Daily") {
-      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.daily.csv")
+      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.daily.csv")
       req(file.exists(filePath))
       data <- read_csv(filePath)
     }
@@ -401,38 +408,38 @@ server <- function(input, output) {
   })
   
   
-  # Pull in the historical average data from the chosen met, package, variable, and timescale
+  # Pull in the historical average data from the chosen meteorological station, parameter suite, variable, and timescale
   
   histData <- reactive({
     
     # Store chosen inputs as how they appear in the file name
     
-    # Met abbreviation
+    # Meteorological Station abbreviation
     met <- metMatchTable %>%
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
     
-    # Pack abbreviation
-    pack <- packMatchTable %>% 
-      filter(names == input$input.pack) %>% 
-      pull(packs)
+    # Parameter Suite abbreviation
+    param <- paramMatchTable %>% 
+      filter(names == input$input.param) %>% 
+      pull(params)
     
     # Variable abbreviation
     varAbv <- varMatchTable %>% 
       filter(names == input$input.variable) %>% 
       pull(vars)
     
-    # Choose which cleaned data to pull based on specified met, pack, variable, and timescale
+    # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale
     if (input$input.timescale == "Seasonally") {
-      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.seasonalHist.csv")
+      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonalHist.csv")
       req(file.exists(filePath))
       histData <- read_csv(filePath) 
     } else if (input$input.timescale == "Monthly") {
-      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.monthlyHist.csv")
+      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.monthlyHist.csv")
       req(file.exists(filePath))
       histData <- read_csv(filePath)
     } else if (input$input.timescale == "Daily") {
-      filePath <- str_glue("../data/met/{met}/{met}_{pack}/{varAbv}/{met}.{varAbv}.dailyHist.csv")
+      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.dailyHist.csv")
       req(file.exists(filePath))
       histData <- read_csv(filePath)
     }
@@ -485,20 +492,20 @@ server <- function(input, output) {
     
     # Store chosen inputs as how they appear in the file name
     
-    # Met abbreviation
+    # Meteorological Station abbreviation
     met <- metMatchTable %>%
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
     
-    # Pack abbreviation (Always "WIND")
-    pack <- "WIND"
+    # Parameter Suite abbreviation (Always "WIND")
+    param <- "WIND"
     
     # Variable abbreviations (Always "wspd" and "wdir")
     varSpd <- "wspd"
     varDir <- "wdir"
     
-    spdData <- read_csv(str_glue("../data/met/{met}/{met}_{pack}/{varSpd}/{met}.{varSpd}.daily.csv"))
-    dirData <- read_csv(str_glue("../data/met/{met}/{met}_{pack}/{varDir}/{met}.{varDir}.daily.csv"))
+    spdData <- read_csv(str_glue("../data/{met}/{met}_{param}/{varSpd}/{met}.{varSpd}.daily.csv"))
+    dirData <- read_csv(str_glue("../data/{met}/{met}_{param}/{varDir}/{met}.{varDir}.daily.csv"))
     
     # Join speed and direction data by date_time column
     data <- spdData %>% 

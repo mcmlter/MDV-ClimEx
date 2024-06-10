@@ -1,19 +1,31 @@
 #### PURPOSE: PART 1 ####
-# The first part of this script compiles the most recent unique identifiers for high frequency meteorological data collected by met stations at the McMurdo Dry Valleys Long Term Ecological Research site. The met data is housed at the Environmental Data Initiative Repository, and can be accessed using the EDIutils package. In order to pull the most recent data, the most recent unique packageID-entityID string for each station-parameter combination must be accessible.
-#The result of this script is a csv file that specifies the most recent package IDs for each station and the entity names for the meteorological parameters stored within. Later, when data is fetched from EDI, this csv will be referenced.
-# A function, getPackageInfo is also created that outputs the latest package ID of and data entities within a given EDI package
+# The first part of this script compiles the most recent unique identifiers for high frequency meteorological data 
+# collected by met stations at the McMurdo Dry Valleys Long Term Ecological Research project. The met data is housed 
+# at the Environmental Data Initiative repository, and can be accessed using the EDIutils package. In order to pull 
+# the most recent data, the most recent unique entityID-paramID string for each station-parameter combination must 
+# be accessible. 
+#
+# The result of this script is a csv file that specifies the most recent entity IDs for each station 
+# and the names for the meteorological variables stored within. Later, when data is fetched from EDI, this 
+# csv will be referenced. A function, getEntityInfo is also created that outputs the latest entity ID and data 
+# available for a given EDI entity.
 
 
 #### PURPOSE: PART 2 ####
-# The second part of this script compiles all high frequency met station data from the McMurdo Dry Valleys Long Term Ecological Research Station. The result is a separate CSV file for each met station, each of which contains the meteorological parameters measured by each station
-# Don't need to make a big CSV of EDI data. Can write a function where the parameter and met of interest is specified.
+# The second part of this script compiles all high frequency met station data from the McMurdo Dry Valleys Long Term 
+# Ecological Research project. The result is a separate CSV file for each met station, each of which contains the 
+# meteorological variables measured by each station.
 
 
-# Author: Gavin Wagner
-
+# Authors: Gavin P. Wagner (gavin.wagner@rutgers.edu), with contributions from Renée F. Brown (rfbrown@unm.edu)
 # Start Date: 10/17/2023
 
-#### Loading Required Packages ####
+
+#### Clear environment ####
+rm(list=ls(all=TRUE))
+
+
+#### Load Required Libraries ####
 library(tidyverse)
 library(EDIutils)
 library(zoo)
@@ -29,25 +41,25 @@ setwd(mainDir)
 
 #### PART 1 ####
 
-##### Package IDs #####
-# Package IDs are strings with the form "scope.identifier.revision"
+##### Entity IDs #####
+# Entity IDs are strings with the form "scope.identifier.revision"
 # The scope for this project is "knb-lter-mcm"
 # The identifiers for this project vary by met station
-# The revision indicates a version of the data package. We want the most recent data package.
+# The revision indicates a version of the data entity. We want the most recent data entity.
 
-# This function, getPackageInfo(), procures information about a data package on EDI.
+# This function, getEntityInfo(), procures information about a data entity in EDI.
 # The input is the 4-letter identifier of the met station of interest. For example, "HOEM" for Lake Hoare
 # The output is a dataframe with 6 columns:
 # met: the met station name
 # metAbv: the four-letter met station ID
 # scope: The scope of the EDI project
-# identifier: The EDI identifier of the package of interest within the scope
-# revision: The latest revision of the data package
-# packageID: the package ID of the data package, which can be used in the read_data_entity() function to procure data
+# identifier: The EDI identifier of the entity of interest within the scope
+# revision: The latest revision of the data entity
+# entityID: the entity ID of the data entity, which can be used in the read_data_entity() function to procure data
 
-#Begin Package Info Function
+#Begin Entity Info Function
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-getPackageInfo <- function(metID) {
+getEntityInfo <- function(metID) {
   scope = "knb-lter-mcm"
   metInfo <- data.frame(
     met = c(
@@ -107,7 +119,7 @@ getPackageInfo <- function(metID) {
     mutate(revision = list_data_package_revisions(scope,
                                                   identifier,
                                                   filter = "newest"),
-           packageID = paste(scope, identifier, revision, sep = '.'))
+           entityID = paste(scope, identifier, revision, sep = '.'))
   
   
   return(metInfo)
@@ -115,7 +127,7 @@ getPackageInfo <- function(metID) {
   
 }
 
-# End Package Info Function
+# End Entity Info Function
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #### PART 2 ####
@@ -130,51 +142,51 @@ getPackageInfo <- function(metID) {
 advDataPull <- function(metAbv) {
   
   # First pull pertinent info about the specified met
-  # Get general package info
-  packageInfo <- getPackageInfo(metAbv)
+  # Get general entity info
+  entityInfo <- getEntityInfo(metAbv)
   
-  # Create subdirectory for metData if there is not already one
-  if (!file.exists("../data/met")) {
-    dir.create(file.path("../data/met"))
+  # Create data directory if there is not already one
+  if (!file.exists("../data")) {
+    dir.create(file.path("../data"))
   }
   
   # Create subdirectory for met Station if there is not already one
-  if (!file.exists(str_glue("../data/met/{metAbv}"))) {
-    dir.create(file.path("../data/met", metAbv))
+  if (!file.exists(str_glue("../data/{metAbv}"))) {
+    dir.create(file.path("../data", metAbv))
   }
   
-  # Get the included parameters and their entityIDs
-  entities <- read_data_entity_names(packageInfo$packageID)
+  # Get the included parameter suites and their entityIDs
+  params <- read_data_entity_names(entityInfo$entityID)
   
   
-  # Get the names of the entities to be included in the application
-  entityNames <- entities %>% 
+  # Get the names of the parameter suites to be included in the application
+  paramNames <- params %>% 
     select(entityName) %>% 
     mutate(entityName = gsub(".*_", "", entityName)) %>% # Subset everything after the underscore
     filter(entityName == "AIRT" |
-             entityName == "RADN" |
-             entityName == "WIND" |
-             entityName == "PRESSTA" |
-             entityName == "RH" |
-             entityName == "SOILM" |
-             entityName == "SOILT") %>% 
+           entityName == "RADN" |
+           entityName == "WIND" |
+           entityName == "PRESSTA" |
+           entityName == "RH" |
+           entityName == "SOILM" |
+           entityName == "SOILT") %>% 
     pull(entityName)
   
-  # Cycle through each entity and create subdirectories for each met-entity combo if they don't already exist in the parent met directory
-  for (entity in entityNames) {
-    subDir <- str_glue("../data/met/{metAbv}/{metAbv}_{entity}")
+  # Cycle through each entity and create subdirectories for each met-param combo if they don't already exist in the parent met directory
+  for (param in paramNames) {
+    subDir <- str_glue("../data/{metAbv}/{metAbv}_{param}")
     if (!file.exists(subDir)) {
       dir.create(file.path(subDir))
     }
   }
   
-  # Get the latest revision of the met station's data package
+  # Get the latest revision of the met station's data entity
   latestRevision <- data.frame(met = metAbv,
-                               rev = list_data_package_revisions(packageInfo$scope, packageInfo$identifier, filter = "newest"))
+                               rev = list_data_package_revisions(entityInfo$scope, entityInfo$identifier, filter = "newest"))
     
   
   # Store the location where the revision file should be
-  revFile <-str_glue("../data/met/{metAbv}/{metAbv}latestRevision.csv") 
+  revFile <-str_glue("../data/{metAbv}/{metAbv}latestRevision.csv") 
   
   #  Check if revision file exists.
   if (file.exists(revFile)) {
@@ -188,7 +200,7 @@ advDataPull <- function(metAbv) {
   }
   
   # # Test value
-  # entity <- "AIRT"
+  # param <- "AIRT"
   
   # Only run if the latest revision doesn't match the stored data's revision
   if (storedRevision$rev != latestRevision$rev) {
@@ -196,16 +208,17 @@ advDataPull <- function(metAbv) {
     # Store the latest revision so we have it in the future
     write_csv(latestRevision, revFile) # Need to use write.csv here to write a csv from a single character vector
     
-    # Cycle through the entities contained in the met's data package, # Write the entity data to a csv that will take the name met.entity.csv
-    for (entity in entityNames) {
+    # Cycle through the parameter suites contained in each met station's data entity, 
+    # Write the parameter data to a csv that will take the name met_param.csv
+    for (param in paramNames) {
         
       # Read in the entity's data
-      rawData <- read_data_entity(packageInfo$packageID, 
-                                  entities[entities$entityName == str_glue("{metAbv}_{entity}"), "entityId"])
+      rawData <- read_data_entity(entityInfo$entityID, 
+                                  params[params$entityName == str_glue("{metAbv}_{param}"), "entityId"])
       
      
-      # Read raw entity data, only including pertinent variables
-      entityData <- read_csv(file = rawData) %>% 
+      # Read raw parameter data, only including pertinent variables
+      paramData <- read_csv(file = rawData) %>% 
         select(any_of(c("date_time",
                         "airt2m",
                         "airt1m",
@@ -233,24 +246,25 @@ advDataPull <- function(metAbv) {
                         "soilt10cm",
                         "pressta")))
       
-      # Store the file path for the met_entity data
-      met_entityFile <- str_glue("../data/met/{metAbv}/{metAbv}_{entity}/{metAbv}_{entity}.csv")
+      # Store the file path for the met_param data
+      met_paramFile <- str_glue("../data/{metAbv}/{metAbv}_{param}/{metAbv}_{param}.csv")
       
-      # Write the complete raw entity data to a csv that will take the name met_entity.csv
-      write_csv(entityData, met_entityFile)
+      # Write the complete raw parameter data to a csv that will take the name met_param.csv
+      write_csv(paramData, met_paramFile)
       
-      # Read and store the numeric columns (variables of interest) contained in the entity data. The variables of interest will be the only columns with numeric type.
-      numericCols <- entityData %>% 
+      # Read and store the numeric columns (variables of interest) contained in the parameter data. 
+      # The variables of interest will be the only columns with numeric type.
+      numericCols <- paramData %>% 
         select(where(is.numeric))
       variables <- colnames(numericCols)
       
       # # Test Value
       # var <- "airt3m"
-      
-      # Cycle through each variables contained in the entity data set:
+
+      # Cycle through each variables contained in the parameter data set:
       for (var in variables) {
-        # Create directories for each met-entity-variable combo if they don't already exist in the parent met-entity directory
-        varDir <- str_glue("../data/met/{metAbv}/{metAbv}_{entity}/{var}")
+        # Create directories for each met-param-variable combo if they don't already exist in the parent met-param directory
+        varDir <- str_glue("../data/{metAbv}/{metAbv}_{param}/{var}")
         if (!file.exists(varDir)) {
           dir.create(file.path(varDir))
         } else {
@@ -258,7 +272,7 @@ advDataPull <- function(metAbv) {
         }
         
         # Select the data pertinent to the current variable, parse the date time column.
-        varData <- entityData %>% 
+        varData <- paramData %>% 
           select(date_time, all_of(var)) %>% 
           mutate(date_time = date(mdy_hm(date_time)))
         
@@ -290,14 +304,15 @@ advDataPull <- function(metAbv) {
         template_df <- data.frame(date_time = date(date_seq))
         
         # Backfill missing dates with NA's by merging the template to the raw data. Add columns for year, yearmonth, day of year, and season. Arrange columns
+        # Season definitions provided by Obryk et al. (2020)
         varData <- full_join(template_df, varData)%>%
           mutate(year = year(date_time),
                  month = month(date_time),
                  yearmonth = as.yearmon(date_time),
-                 season = case_when(month %in% c(11, 12, 1, 2) ~ "Summer", # Definition of Austral Summer provided by Obryk et al. (2020)
-                                    month %in% c(3, 4, 5) ~ "Autumn", # Perhaps just 3
-                                    month %in% c(6, 7, 8) ~ "Winter", # Perhaps 4,5,6,7,8,9
-                                    month %in% c(9, 10) ~ "Spring"), # Perhaps just 10
+                 season = case_when(month %in% c(11, 12, 1, 2) ~ "Summer",     # Nov-Feb
+                                    month %in% c(3) ~ "Autumn",                # Mar
+                                    month %in% c(4, 5, 6, 7, 8, 9) ~ "Winter", # Apr-Sep
+                                    month %in% c(10) ~ "Spring"),              # Oct
                  .after = "date_time") %>% 
           select(date_time, year, month, yearmonth, season, meanVal) %>% 
           arrange(date_time)
@@ -327,7 +342,7 @@ advDataPull <- function(metAbv) {
         # Rename the meanVal column as the variable of the current loop
         colnames(dailyData)[colnames(dailyData)=="meanVal"] <- var
         
-        # Store full entityData data frame (already daily-averaged) as variable.daily.csv
+        # Store full paramData data frame (already daily-averaged) as variable.daily.csv
         write_csv(dailyData, str_glue("{varDir}/{metAbv}.{var}.daily.csv"))
         
         
@@ -440,7 +455,7 @@ advDataPull <- function(metAbv) {
 
 ##### Daily Iterative Data Check/Pull Protocol #####
 
-# Check each data package to make sure if it is the latest. If not the latest, pull the latest data package from EDI. To be run once daily. 
+# Check each data entity to make sure if it is the latest. If not the latest, pull the latest data entity from EDI. To be run once daily. 
 
 
 # Series of all possible Met Station 4-letter abbreviations
@@ -465,9 +480,6 @@ metAbvs = c(
 for (met in metAbvs) {
   advDataPull(met)
 }
-
-
-
 
 
 
