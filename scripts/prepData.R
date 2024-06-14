@@ -31,14 +31,6 @@ library(EDIutils)
 library(zoo)
 
 
-#### Set the Main Working Directory Here ####
-
-# This will be the directory where a folder "metData" will be created and populated with the met data requested
-mainDir <- getwd()
-
-# Set initial working directory as main directory
-setwd(mainDir)
-
 #### PART 1 ####
 
 ##### Entity IDs #####
@@ -146,13 +138,13 @@ advDataPull <- function(metAbv) {
   entityInfo <- getEntityInfo(metAbv)
   
   # Create data directory if there is not already one
-  if (!file.exists("../data")) {
-    dir.create(file.path("../data"))
+  if (!file.exists("data")) {
+    dir.create(file.path("data"))
   }
   
   # Create subdirectory for met Station if there is not already one
-  if (!file.exists(str_glue("../data/{metAbv}"))) {
-    dir.create(file.path("../data", metAbv))
+  if (!file.exists(str_glue("data/{metAbv}"))) {
+    dir.create(file.path("data", metAbv))
   }
   
   # Get the included parameter suites and their entityIDs
@@ -173,7 +165,7 @@ advDataPull <- function(metAbv) {
   
   # Cycle through each entity and create subdirectories for each met-param combo if they don't already exist in the parent met directory
   for (param in paramNames) {
-    subDir <- str_glue("../data/{metAbv}/{metAbv}_{param}")
+    subDir <- str_glue("data/{metAbv}/{metAbv}_{param}")
     if (!file.exists(subDir)) {
       dir.create(file.path(subDir))
     }
@@ -185,7 +177,7 @@ advDataPull <- function(metAbv) {
     
   
   # Store the location where the revision file should be
-  revFile <-str_glue("../data/{metAbv}/{metAbv}latestRevision.csv") 
+  revFile <- str_glue("data/{metAbv}/{metAbv}latestRevision.csv") 
   
   #  Check if revision file exists.
   if (file.exists(revFile)) {
@@ -240,7 +232,7 @@ advDataPull <- function(metAbv) {
                         "pressta")))
       
       # Store the file path for the met_param data
-      met_paramFile <- str_glue("../data/{metAbv}/{metAbv}_{param}/{metAbv}_{param}.csv")
+      met_paramFile <- str_glue("data/{metAbv}/{metAbv}_{param}/{metAbv}_{param}.csv")
       
       # Write the complete raw parameter data to a csv that will take the name met_param.csv
       write_csv(paramData, met_paramFile)
@@ -257,7 +249,7 @@ advDataPull <- function(metAbv) {
       # Cycle through each variables contained in the parameter data set:
       for (var in variables) {
         # Create directories for each met-param-variable combo if they don't already exist in the parent met-param directory
-        varDir <- str_glue("../data/{metAbv}/{metAbv}_{param}/{var}")
+        varDir <- str_glue("data/{metAbv}/{metAbv}_{param}/{var}")
         if (!file.exists(varDir)) {
           dir.create(file.path(varDir))
         } else {
