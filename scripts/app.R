@@ -44,12 +44,12 @@ ui <- fluidPage(
                                                           "Lake Vanda",
                                                           "Lake Vida",
                                                           "Miers Valley"),
-                                 "Glacial Sites" = c("Taylor Glacier",
+                                 "Glacial Sites" = c("Commonwealth Glacier",
                                                      "Canada Glacier",
-                                                     "Commonwealth Glacier",
-                                                     "Howard Glacier"),
+                                                     "Howard Glacier",
+                                                     "Taylor Glacier"),
                                  "High Altitude Sites" = c("Friis Hills",
-                                                           "Mt. Fleming"))),
+                                                           "Mount Fleming"))),
       selectInput(inputId = "input.param", "Parameter Suite of Interest", 
                   choices = NULL),
       selectInput(inputId = "input.variable", "Variable of Interest", 
@@ -104,9 +104,9 @@ ui <- fluidPage(
   ),
   # Footer
   hr(),
-  p("This work was funded by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term Ecological Research (", 
+  p("Funding for this work was provided by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term Ecological Research (", 
     a(href="https://mcmlter.org/", "MCM LTER"), ") program, most recently #OPP-1637708 and #OPP-2224760. Source code is available on ",
-    a(href="https://github.com/mcmlter/MDV-ClimEx", "GitHub."), align="left", style = "font-size:11px; color = white")
+    a(href="https://github.com/mcmlter/MDV-ClimEx", "GitHub"), ".", align="left", style = "font-size:11px; color = white")
 )
 
 
@@ -134,7 +134,7 @@ server <- function(input, output) {
               "Lake Vanda",
               "Lake Vida",
               "Miers Valley",
-              "Mt. Fleming",
+              "Mount Fleming",
               "Taylor Glacier"),
       metAbv = c("CAAM",
                  "COHM",
@@ -193,7 +193,7 @@ server <- function(input, output) {
                                       "Lake Vanda",
                                       "Lake Vida",
                                       "Miers Valley",
-                                      "Mt. Fleming",
+                                      "Mount Fleming",
                                       "Taylor Glacier"),
                              metAbvs = c("CAAM",
                                          "COHM",
