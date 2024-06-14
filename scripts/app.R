@@ -104,7 +104,7 @@ ui <- fluidPage(
   ),
   # Footer
   hr(),
-  p("This material was funded by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term Ecological Research (", 
+  p("This work was funded by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term Ecological Research (", 
     a(href="https://mcmlter.org/", "MCM LTER"), ") program, most recently #OPP-1637708 and #OPP-2224760. Source code is available on ",
     a(href="https://github.com/mcmlter/MDV-ClimEx", "GitHub."), align="left", style = "font-size:11px; color = white")
 )
