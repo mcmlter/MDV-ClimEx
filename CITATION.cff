@@ -1,0 +1,30 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: MDV-ClimEx
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Gavin
+    name-particle: P.
+    family-names: Wagner
+    email: gavin.wagner@rutgers.edu
+    affiliation: 'Rutgers, The State University of New Jersey'
+    orcid: 'https://orcid.org/0009-0002-0056-1847'
+  - given-names: Renée
+    name-particle: F.
+    family-names: Brown
+    email: rfbrown@unm.edu
+    affiliation: The University of New Mexico
+    orcid: 'https://orcid.org/0000-0002-4986-7663'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.11663458
+repository-code: 'https://github.com/mcmlter/MDV-ClimEx'
+url: 'https://mcmlter.org/MDV-ClimEx'
+license: GPL-3.0
+version: 1.0.0
+date-released: '2024-06-14'
