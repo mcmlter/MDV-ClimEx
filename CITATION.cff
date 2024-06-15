@@ -2,7 +2,7 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: "mcmlter/MDV-ClimEx: McMurdo Dry Valleys LTER Climate Extremes Data Viewer v1.0.0"
+title: "mcmlter/MDV-ClimEx: McMurdo Dry Valleys LTER Climate Extremes Data Viewer"
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -21,7 +21,6 @@ authors:
 identifiers:
   - type: doi
     value: 10.5281/zenodo.11663458
-repository-code: 'https://github.com/mcmlter/MDV-ClimEx'
 url: 'https://mcmlter.org/MDV-ClimEx'
 license: GPL-3.0
 version: 1.0.0
