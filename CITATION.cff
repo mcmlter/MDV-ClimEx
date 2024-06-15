@@ -8,14 +8,12 @@ message: >-
   metadata from this file.
 type: software
 authors:
-  - given-names: Gavin
-    name-particle: P.
+  - given-names: Gavin P.
     family-names: Wagner
     email: gavin.wagner@rutgers.edu
     affiliation: 'Rutgers, The State University of New Jersey'
     orcid: 'https://orcid.org/0009-0002-0056-1847'
-  - given-names: Renée
-    name-particle: F.
+  - given-names: Renée F.
     family-names: Brown
     email: rfbrown@unm.edu
     affiliation: The University of New Mexico
