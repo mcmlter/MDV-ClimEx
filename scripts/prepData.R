@@ -190,9 +190,6 @@ advDataPull <- function(metAbv) {
                                  rev = "dummy")
   }
   
-  # # Test value
-  # param <- "AIRT"
-  
   # Only run if the latest revision doesn't match the stored data's revision
   if (storedRevision$rev != latestRevision$rev) {
     
@@ -207,7 +204,6 @@ advDataPull <- function(metAbv) {
       rawData <- read_data_entity(entityInfo$entityID, 
                                   params[params$entityName == str_glue("{metAbv}_{param}"), "entityId"])
       
-     
       # Read raw parameter data, only including pertinent variables
       paramData <- read_csv(file = rawData) %>% 
         select(any_of(c("date_time",
@@ -216,7 +212,6 @@ advDataPull <- function(metAbv) {
                         "airt3m",
                         "swradin",
                         "swradout",
-                        "netrad",
                         "rh2m",
                         "rh1m",
                         "rh3m",
@@ -242,9 +237,7 @@ advDataPull <- function(metAbv) {
       numericCols <- paramData %>% 
         select(where(is.numeric))
       variables <- colnames(numericCols)
-      
-      # # Test Value
-      # var <- "airt3m"
+
 
       # Cycle through each variables contained in the parameter data set:
       for (var in variables) {
@@ -431,10 +424,7 @@ advDataPull <- function(metAbv) {
         
       }
     }
-    
   }
-  
-  
 }
 
 

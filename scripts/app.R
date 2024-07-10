@@ -230,7 +230,6 @@ server <- function(input, output) {
                                        "airt3m",
                                        "swradin",
                                        "swradout",
-                                       "netrad",
                                        "rh2m",
                                        "rh1m",
                                        "rh3m",
@@ -249,7 +248,6 @@ server <- function(input, output) {
                                      "Air Temperature (°C) at 3m",
                                      "Incoming Shortwave Radiation (W/m^2)",
                                      "Outgoing Shortwave Radiation (W/m^2)",
-                                     "Net Radiation (W/m^2)",
                                      "Relative Humidity (%) at 2m",
                                      "Relative Humidity (%) at 1m",
                                      "Relative Humidity (%) at 3m",
@@ -544,7 +542,6 @@ server <- function(input, output) {
     # Store met name
     metName <- input$input.met
     
-    
     # Create title from varName and metName
     title <- str_glue("{timeSeries} {varName} at {metName}")
     
@@ -719,7 +716,7 @@ server <- function(input, output) {
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
-      # Add a line trace for 2 σ below historical average
+      # Add a line trace for 2σ below historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg - 2*histAvgs$sdVal,
                 type = "scatter", 
@@ -729,7 +726,7 @@ server <- function(input, output) {
                 showlegend = FALSE,
                 hovertemplate = '%{y}') %>%
       
-      # Add a line trace for 1 σ above historical average
+      # Add a line trace for 1σ above historical average
       add_trace(x = histAvgs[[timescale]],
                 y = histAvgs$histAvg + histAvgs$sdVal,
                 type = "scatter", 
@@ -835,29 +832,14 @@ server <- function(input, output) {
   })
 
   # Render wind data info when wind rose is selected
-  
   output$windDataInfo <- renderText(
     "The wind rose is presented as an aggregate of the entire existing record of wind speed and direction data at the chosen met station."
   )
   
   # Render "Use the tools in the top right corner of the plot to navigate, download, or revert plot. Click and drag to zoom in on data."
-  
   output$zoom <- renderText(
     "Use the tools in the top right corner of the plot to navigate, download, or revert plot. Click and drag to zoom in on data."
   )
-  
-  
-  
-  
-  
-  # Test Outputs
-
-  
-  
-  
-   # Note extent of climate record to indicate what the n is
-  
- # Use "if" statements to visualize different plots based on user input
 }
 
 # Run the application 
