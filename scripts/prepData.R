@@ -126,9 +126,6 @@ getEntityInfo <- function(metID) {
 
 ##### Fetching Met Data #####
 
-# # Test Value
-# metAbv <- "BOYM"
-
 # Begin advanced data pull function
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 advDataPull <- function(metAbv) {
@@ -155,12 +152,7 @@ advDataPull <- function(metAbv) {
   paramNames <- params %>% 
     select(entityName) %>% 
     mutate(entityName = gsub(".*_", "", entityName)) %>% # Subset everything after the underscore
-    filter(entityName == "AIRT" |
-           entityName == "RADN" |
-           entityName == "WIND" |
-           entityName == "PRESSTA" |
-           entityName == "RH" |
-           entityName == "SOILT") %>% 
+    filter(entityName %in% c("AIRT", "RADN", "WIND", "PRESSTA", "RH", "SOILT")) %>% 
     pull(entityName)
   
   # Cycle through each entity and create subdirectories for each met-param combo if they don't already exist in the parent met directory
@@ -241,6 +233,7 @@ advDataPull <- function(metAbv) {
 
       # Cycle through each variables contained in the parameter data set:
       for (var in variables) {
+        
         # Create directories for each met-param-variable combo if they don't already exist in the parent met-param directory
         varDir <- str_glue("data/{metAbv}/{metAbv}_{param}/{var}")
         if (!file.exists(varDir)) {
@@ -255,21 +248,20 @@ advDataPull <- function(metAbv) {
           mutate(date_time = date(mdy_hm(date_time)))
         
         # Remove days that have more than 10% of the data missing
-        varData <- varData %>% 
+        varData <- varData %>%
           group_by(date_time) %>%
           summarise(naCount = sum(is.na(.data[[var]])),
                     entryCount = n(),
                     naProp = naCount/entryCount) %>%
           select(date_time, naProp) %>%
-          right_join(varData, by = "date_time") %>% 
+          right_join(varData, by = "date_time") %>%
           filter(naProp < 0.1) %>%
           select(!naProp)
-        
         
         # Create daily summaries of the mean value of the variable over the day
         varData <- varData %>% 
           group_by(date_time) %>% 
-          summarize(meanVal = mean(.data[[var]], na.rm = TRUE)) 
+          summarize(summaryVal = mean(.data[[var]], na.rm = TRUE)) 
         
         # Get data range
         startDate <- floor_date(head(varData$date_time,1), unit = "day")
@@ -292,7 +284,7 @@ advDataPull <- function(metAbv) {
                                     month %in% c(4, 5, 6, 7, 8, 9) ~ "Winter", # Apr-Sep
                                     month %in% c(10) ~ "Spring"),              # Oct
                  .after = "date_time") %>% 
-          select(date_time, year, month, yearmonth, season, meanVal) %>% 
+          select(date_time, year, month, yearmonth, season, summaryVal) %>% 
           arrange(date_time)
         
         # Create "fakedate" column, a column with the dates correct except the year is 2020. Helps plot multiple years on the same x axis.
@@ -310,15 +302,15 @@ advDataPull <- function(metAbv) {
           # Create "yearseason" column, a column with the season name and the year for each entry
           mutate(yearseason = str_c(season, year, sep = " "),
                  .after = "season")
-     
+        
         ###### Daily Data ######
       
         # Pull pertinent columns, add fakedate column
         dailyData <- varData %>% 
-          select(date_time, fakedate, year, monthday, meanVal)
+          select(date_time, fakedate, year, monthday, summaryVal)
         
-        # Rename the meanVal column as the variable of the current loop
-        colnames(dailyData)[colnames(dailyData)=="meanVal"] <- var
+        # Rename the summaryVal column as the variable of the current loop
+        colnames(dailyData)[colnames(dailyData)=="summaryVal"] <- var
         
         # Store full paramData data frame (already daily-averaged) as variable.daily.csv
         write_csv(dailyData, str_glue("{varDir}/{metAbv}.{var}.daily.csv"))
@@ -327,12 +319,12 @@ advDataPull <- function(metAbv) {
         ###### Monthly Data ######
         
         # Aggregate over the month
-        monthlyData <- varData %>% 
-          group_by(year, month, yearmonth) %>% 
-          summarise(meanVal = mean(meanVal, na.rm = TRUE))
-          
-        # Rename the meanVal column as the variable of the current loop
-        colnames(monthlyData)[colnames(monthlyData)=="meanVal"] <- var
+        monthlyData <- varData %>%
+          group_by(year, month, yearmonth) %>%
+          summarise(summaryVal = mean(summaryVal, na.rm = TRUE)) 
+        
+        # Rename the summaryVal column as the variable of the current loop
+        colnames(monthlyData)[colnames(monthlyData)=="summaryVal"] <- var
         
         # Store monthly-averaged data frame as variable.monthly.csv
         write_csv(monthlyData, str_glue("{varDir}/{metAbv}.{var}.monthly.csv"))
@@ -343,10 +335,10 @@ advDataPull <- function(metAbv) {
         # Aggregate over the season
         seasonalData <- varData %>% 
           group_by(year, season, yearseason) %>% 
-          summarise(meanVal = mean(meanVal, na.rm = TRUE))
+          summarise(summaryVal = mean(summaryVal, na.rm = TRUE))
         
-        # Rename the meanVal column as the variable of the current loop
-        colnames(seasonalData)[colnames(seasonalData)=="meanVal"] <- var
+        # Rename the summaryVal column as the variable of the current loop
+        colnames(seasonalData)[colnames(seasonalData)=="summaryVal"] <- var
         
         # Store seasonally-averaged data frame as variable.seasonal.csv
         write_csv(seasonalData, str_glue("{varDir}/{metAbv}.{var}.seasonal.csv"))
@@ -357,7 +349,7 @@ advDataPull <- function(metAbv) {
         # Remove years that have more than 10% data missing.
         varData_cleaned <- varData %>%
           mutate(year = year(date_time),
-                 isNA = is.na(meanVal)) %>%
+                 isNA = is.na(summaryVal)) %>%
           group_by(year) %>%
           summarize(naCount = sum(isNA),
                     entryCount = n(),
@@ -365,13 +357,13 @@ advDataPull <- function(metAbv) {
           select(year, naProp) %>%
           right_join(varData, by = "year") %>%
           filter(naProp < 0.1) %>%
-          select(!naProp) %>% 
+          select(!naProp) %>%
           arrange(date_time)
         
         # Remove months that have more than 10% data missing (There are no months with more than 10% data missing in the lake hoare airt3m data)
         # Reformat Column order
         varData_cleaned <- varData_cleaned %>%
-          mutate(isNA = is.na(meanVal)) %>%
+          mutate(isNA = is.na(summaryVal)) %>%
           group_by(month) %>%
           summarise(naCount = sum(isNA),
                     entryCount = n(),
@@ -379,19 +371,19 @@ advDataPull <- function(metAbv) {
           select(month, naProp) %>%
           right_join(varData, by = "month") %>%
           filter(naProp < 0.1) %>%
-          select(!naProp) %>% 
-          select(date_time, year, month, yearmonth, monthday, season, yearseason, meanVal) %>% 
+          select(!naProp) %>%
+          select(date_time, year, month, yearmonth, monthday, season, yearseason, summaryVal) %>%
           arrange(date_time)
           
           
         # Daily Historical Averages
         dailyHist <- varData_cleaned %>%
           group_by(monthday) %>% 
-          summarise(histAvg = mean(meanVal, na.rm = TRUE),
-                    sdVal = sd(meanVal, na.rm = TRUE))
+          summarise(histAvg = mean(summaryVal, na.rm = TRUE),
+                    sdVal = sd(summaryVal, na.rm = TRUE))
         
-        # Rename the meanVal column as the variable of the current loop
-        colnames(dailyHist)[colnames(dailyHist)=="meanVal"] <- var
+        # Rename the summaryVal column as the variable of the current loop
+        colnames(dailyHist)[colnames(dailyHist)=="summaryVal"] <- var
         
         # Store seasonally-averaged data frame as variable.seasonal.csv
         write_csv(dailyHist, str_glue("{varDir}/{metAbv}.{var}.dailyHist.csv"))
@@ -400,11 +392,11 @@ advDataPull <- function(metAbv) {
         # Monthly Historical Averages
         monthlyHist <- varData_cleaned %>% 
           group_by(month) %>% 
-          summarise(histAvg = mean(meanVal, na.rm = TRUE),
-                    sdVal = sd(meanVal, na.rm = TRUE))
+          summarise(histAvg = mean(summaryVal, na.rm = TRUE),
+                    sdVal = sd(summaryVal, na.rm = TRUE))
         
-        # Rename the meanVal column as the variable of the current loop
-        colnames(monthlyHist)[colnames(monthlyHist)=="meanVal"] <- var
+        # Rename the summaryVal column as the variable of the current loop
+        colnames(monthlyHist)[colnames(monthlyHist)=="summaryVal"] <- var
         
         # Store seasonally-averaged data frame as variable.seasonal.csv
         write_csv(monthlyHist, str_glue("{varDir}/{metAbv}.{var}.monthlyHist.csv"))
@@ -413,11 +405,11 @@ advDataPull <- function(metAbv) {
         # Seasonal Historical Averages
         seasonalHist <- varData_cleaned %>% 
           group_by(season) %>% 
-          summarise(histAvg = mean(meanVal, na.rm = TRUE),
-                    sdVal = sd(meanVal, na.rm = TRUE))
+          summarise(histAvg = mean(summaryVal, na.rm = TRUE),
+                    sdVal = sd(summaryVal, na.rm = TRUE))
         
-        # Rename the meanVal column as the variable of the current loop
-        colnames(seasonalHist)[colnames(seasonalHist)=="meanVal"] <- var
+        # Rename the summaryVal column as the variable of the current loop
+        colnames(seasonalHist)[colnames(seasonalHist)=="summaryVal"] <- var
         
         # Store seasonally-averaged data frame as variable.seasonal.csv
         write_csv(seasonalHist, str_glue("{varDir}/{metAbv}.{var}.seasonalHist.csv"))
