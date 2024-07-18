@@ -85,15 +85,18 @@ ui <- fluidPage(
                    type = "hidden",
                    tabPanel(
                      title = "Standard",
-                     plotlyOutput("standardPlot")
+                     plotlyOutput("standardPlot"),
+                     textOutput("standardPlotText")
                    ),
                    tabPanel(
                      title = "Historical Comparison",
-                     plotlyOutput("historicalPlot")
+                     plotlyOutput("historicalPlot"),
+                     textOutput("historicalPlotText")
                    ),
                    tabPanel(
                      title = "Wind Rose",
-                     plotOutput("windRosePlot")
+                     plotOutput("windRosePlot"),
+                     textOutput("windRosePlotText")
                    )
                  )
         )
@@ -104,9 +107,10 @@ ui <- fluidPage(
   ),
   # Footer
   hr(),
-  p("Funding for this work was provided by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term Ecological Research (", 
-    a(href="https://mcmlter.org/", "MCM LTER"), ") program, most recently #OPP-1637708 and #OPP-2224760. Source code is available on ",
-    a(href="https://github.com/mcmlter/MDV-ClimEx", "GitHub"), ".", align="left", style = "font-size:11px; color = white")
+  p("Funding for this work was provided by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term Ecological Research",  
+    "(MCM LTER) program, most recently #OPP-1637708 and #OPP-2224760. ",
+    "Data are available in the ", a(href="https://mcm.lternet.edu/meteorology-data-sets", "MCM LTER Data Catalog."),
+    "Source code is available on ", a(href="https://github.com/mcmlter/MDV-ClimEx", "GitHub."), align="left", style = "font-size:11px; color = white")
 )
 
 
@@ -114,8 +118,6 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output) {
-  
-  
   
   #### Parameter Info Function ####
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -174,7 +176,6 @@ server <- function(input, output) {
                                                    filter = "newest"),
              parameterID = paste(scope, identifier, revision, sep = '.'))
     
-    
     return(metInfo)
   }
   
@@ -221,7 +222,7 @@ server <- function(input, output) {
                                           "Barometric Pressure",
                                           "Relative Humidity",
                                           "Solar Radiation",
-                                          "Wind Direction and Speed",
+                                          "Wind Speed and Direction",
                                           "Soil Temperature"))
   
   # Table of possible variables and their laynames 
@@ -233,8 +234,8 @@ server <- function(input, output) {
                                        "rh2m",
                                        "rh1m",
                                        "rh3m",
-                                       "wdir",
                                        "wspd",
+                                       "wdir",
                                        "lwradin2",
                                        "lwradout2",
                                        "rh",
@@ -251,8 +252,8 @@ server <- function(input, output) {
                                      "Relative Humidity (%) at 2m",
                                      "Relative Humidity (%) at 1m",
                                      "Relative Humidity (%) at 3m",
-                                     "Wind Direction (° from north)",
                                      "Wind Speed (m/s)",
+                                     "Wind Direction (° from north)",
                                      "Incoming Longwave Radiation (W/m^2)",
                                      "Outgoing Longwave Radiation (W/m^2)	",
                                      "Relative Humidity (%)",
@@ -588,6 +589,10 @@ server <- function(input, output) {
       )
   })
   
+  # Render helper text
+  output$standardPlotText <- renderText({
+    "Navigate, download, or reset the plot using the tools in the upper righthand corner. Click and drag to zoom in."
+  })
   
   # Render Historical Comparison Plot, comparing daily, seasonal, or monthly data with historical averages
   output$historicalPlot <- renderPlotly({
@@ -802,10 +807,11 @@ server <- function(input, output) {
     
   })
   
-  # Render sigma definition
-  
-  output$sigma <- renderText({
-    "σ is the lowercase Greek letter sigma, which stands for standard deviation."
+  # Render helper text
+  output$historicalPlotText <- renderText({
+    "The historical plot compares the selected year's data to the historical average. Shaded areas represent 1, 2, and 3 
+    standard deviations (σ) from the mean. Navigate, download, or reset the plot using the tools in the upper righthand 
+    corner. Click and drag to zoom in."
   })
 
   
@@ -847,15 +853,10 @@ server <- function(input, output) {
     
   })
 
-  # Render wind data info when wind rose is selected
-  output$windDataInfo <- renderText(
-    "The wind rose is presented as an aggregate of the entire existing record of wind speed and direction data at the chosen met station."
-  )
-  
-  # Render "Use the tools in the top right corner of the plot to navigate, download, or revert plot. Click and drag to zoom in on data."
-  output$zoom <- renderText(
-    "Use the tools in the top right corner of the plot to navigate, download, or revert plot. Click and drag to zoom in on data."
-  )
+  # Render helper text
+  output$windRosePlotText <- renderText({
+    "The wind rose is presented as an aggregate of the entire record and unlike other plot types, does not allow for interaction."
+  })
 }
 
 # Run the application 
