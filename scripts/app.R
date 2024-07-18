@@ -271,15 +271,31 @@ server <- function(input, output) {
     a <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
+    
     b <- word(read_data_entity_names(getParameterInfo(a)$parameterID)[,"entityName"], 2, sep = "_") # Read parameter IDs in a specified met
-    c <- paramMatchTable %>% # Match the parameter IDs to layperson names
-      filter(params %in% b,
-             params != "WVAPD",
-             params != "SOILM",
-             params != "ONYXT",
-             params != "PPT",
-             params != "ICET") %>% 
-      pull(names)
+    
+    if (a == "CAAM") {
+      c <- paramMatchTable %>% # Match the parameter IDs to layperson names
+        filter(params %in% b,
+               params != "PRESSTA",
+               params != "ICET") %>% 
+        pull(names)
+    } else if (a == "FRSM") {
+      c <- paramMatchTable %>% # Match the parameter IDs to layperson names
+        filter(params %in% b,
+               params != "RADN") %>% 
+        pull(names)
+    } else {
+      c <- paramMatchTable %>% # Match the parameter IDs to layperson names
+        filter(params %in% b,
+               params != "WVAPD",
+               params != "SOILM",
+               params != "ONYXT",
+               params != "PPT",
+               params != "ICET") %>% 
+        pull(names)
+    }
+    
     return(c) # Return the names of parameter suites available from the input met
   })
   
