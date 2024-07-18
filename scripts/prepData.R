@@ -210,6 +210,7 @@ advDataPull <- function(metAbv) {
                                   params[params$entityName == str_glue("{metAbv}_{param}"), "entityId"])
       
       # Read raw parameter data, only including pertinent variables
+      # Note that wspd needs to come before wdir
       paramData <- read_csv(file = rawData) %>% 
         select(any_of(c("date_time",
                         "airt2m",
@@ -220,8 +221,8 @@ advDataPull <- function(metAbv) {
                         "rh2m",
                         "rh1m",
                         "rh3m",
-                        "wdir",
                         "wspd",
+                        "wdir",
                         "lwradin2",
                         "lwradout2",
                         "rh",
@@ -243,9 +244,9 @@ advDataPull <- function(metAbv) {
         select(where(is.numeric))
       variables <- colnames(numericCols)
 
-      # Cycle through each variables contained in the parameter data set:
+      # Cycle through each variables contained in the parameter dataset
       for (var in variables) {
-        
+
         # Create directories for each met-param-variable combo if they don't already exist in the parent met-param directory
         varDir <- str_glue("data/{metAbv}/{metAbv}_{param}/{var}")
         if (!file.exists(varDir)) {
@@ -255,10 +256,17 @@ advDataPull <- function(metAbv) {
         }
         
         # Select the data pertinent to the current variable, parse the date time column.
-        varData <- paramData %>% 
-          select(date_time, all_of(var)) %>% 
-          mutate(date_time = date(mdy_hm(date_time)))
-        
+        # Wind direction relies on wind speed, so handle separately
+        if (var == "wdir") { 
+          varData <- paramData %>% 
+            select(date_time, wdir, wspd) %>% 
+            mutate(date_time = date(mdy_hm(date_time)))
+        } else {
+          varData <- paramData %>% 
+            select(date_time, all_of(var)) %>% 
+            mutate(date_time = date(mdy_hm(date_time)))
+        }
+ 
         # Remove days that have more than 10% of the data missing
         varData <- varData %>%
           group_by(date_time) %>%
@@ -271,9 +279,25 @@ advDataPull <- function(metAbv) {
           select(!naProp)
         
         # Create daily summaries of the mean value of the variable over the day
-        varData <- varData %>% 
-          group_by(date_time) %>% 
-          summarize(summaryVal = mean(.data[[var]], na.rm = TRUE)) 
+        
+        # Handle wind direction calculations separately
+        if (var == "wdir") {
+          # Filter for rows with non-missing wspd values
+          varData <- varData %>%
+            filter(!is.na(.data$wspd))
+          
+          # Calculate resultant vector average wind direction according to Grange 2014
+          varData <- varData %>%
+            group_by(date_time) %>%
+            summarize(
+                wdir_u = mean(-wspd * sin(2 * pi * wdir/360), na.rm = TRUE),
+                wdir_v = mean(-wspd * cos(2 * pi * wdir/360), na.rm = TRUE)) %>%
+            mutate(summaryVal = (atan2(wdir_u, wdir_v) * 360/2/pi) + 180)
+        } else {
+          varData <- varData %>%
+            group_by(date_time) %>%
+            summarize(summaryVal = mean(.data[[var]], na.rm = TRUE))
+        }
         
         # Get data range
         startDate <- floor_date(head(varData$date_time,1), unit = "day")
@@ -286,7 +310,7 @@ advDataPull <- function(metAbv) {
         template_df <- data.frame(date_time = date(date_seq))
         
         # Backfill missing dates with NA's by merging the template to the raw data. Add columns for year, yearmonth, day of year, and season. Arrange columns
-        # Season definitions provided by Obryk et al. (2020)
+        # Season definitions provided by Obryk et al. 2020
         varData <- full_join(template_df, varData)%>%
           mutate(year = year(date_time),
                  month = month(date_time),
