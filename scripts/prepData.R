@@ -147,13 +147,27 @@ advDataPull <- function(metAbv) {
   # Get the included parameter suites and their entityIDs
   params <- read_data_entity_names(entityInfo$entityID)
   
-  
   # Get the names of the parameter suites to be included in the application
-  paramNames <- params %>% 
-    select(entityName) %>% 
-    mutate(entityName = gsub(".*_", "", entityName)) %>% # Subset everything after the underscore
-    filter(entityName %in% c("AIRT", "RADN", "WIND", "PRESSTA", "RH", "SOILT")) %>% 
-    pull(entityName)
+  # Include exceptions for CAAM (PRESSTA) and FRSM (RADN)
+  if (metAbv == "CAAM") {
+    paramNames <- params %>% 
+      select(entityName) %>% 
+      mutate(entityName = gsub(".*_", "", entityName)) %>% # Subset everything after the underscore
+      filter(entityName %in% c("AIRT", "RADN", "WIND", "RH")) %>% 
+      pull(entityName)
+  } else if (metAbv == "FRSM") {
+    paramNames <- params %>% 
+      select(entityName) %>% 
+      mutate(entityName = gsub(".*_", "", entityName)) %>% # Subset everything after the underscore
+      filter(entityName %in% c("AIRT", "WIND", "PRESSTA", "RH")) %>% 
+      pull(entityName)
+  } else {
+    paramNames <- params %>% 
+      select(entityName) %>% 
+      mutate(entityName = gsub(".*_", "", entityName)) %>% # Subset everything after the underscore
+      filter(entityName %in% c("AIRT", "RADN", "WIND", "PRESSTA", "RH", "SOILT")) %>% 
+      pull(entityName)
+  }
   
   # Cycle through each entity and create subdirectories for each met-param combo if they don't already exist in the parent met directory
   for (param in paramNames) {
@@ -166,7 +180,6 @@ advDataPull <- function(metAbv) {
   # Get the latest revision of the met station's data entity
   latestRevision <- data.frame(met = metAbv,
                                rev = list_data_package_revisions(entityInfo$scope, entityInfo$identifier, filter = "newest"))
-    
   
   # Store the location where the revision file should be
   revFile <- str_glue("data/{metAbv}/{metAbv}latestRevision.csv") 
@@ -230,7 +243,6 @@ advDataPull <- function(metAbv) {
         select(where(is.numeric))
       variables <- colnames(numericCols)
 
-
       # Cycle through each variables contained in the parameter data set:
       for (var in variables) {
         
@@ -239,7 +251,7 @@ advDataPull <- function(metAbv) {
         if (!file.exists(varDir)) {
           dir.create(file.path(varDir))
         } else {
-          print("Sub Directory Exists")
+          print("Subdirectory Exists")
         }
         
         # Select the data pertinent to the current variable, parse the date time column.
@@ -315,7 +327,6 @@ advDataPull <- function(metAbv) {
         # Store full paramData data frame (already daily-averaged) as variable.daily.csv
         write_csv(dailyData, str_glue("{varDir}/{metAbv}.{var}.daily.csv"))
         
-        
         ###### Monthly Data ######
         
         # Aggregate over the month
@@ -329,7 +340,6 @@ advDataPull <- function(metAbv) {
         # Store monthly-averaged data frame as variable.monthly.csv
         write_csv(monthlyData, str_glue("{varDir}/{metAbv}.{var}.monthly.csv"))
         
-
         ###### Seasonal Data ######
         
         # Aggregate over the season
@@ -342,7 +352,6 @@ advDataPull <- function(metAbv) {
         
         # Store seasonally-averaged data frame as variable.seasonal.csv
         write_csv(seasonalData, str_glue("{varDir}/{metAbv}.{var}.seasonal.csv"))
-        
         
         ###### Historical Averages ######
         
@@ -375,7 +384,6 @@ advDataPull <- function(metAbv) {
           select(date_time, year, month, yearmonth, monthday, season, yearseason, summaryVal) %>%
           arrange(date_time)
           
-          
         # Daily Historical Averages
         dailyHist <- varData_cleaned %>%
           group_by(monthday) %>% 
@@ -387,7 +395,6 @@ advDataPull <- function(metAbv) {
         
         # Store seasonally-averaged data frame as variable.seasonal.csv
         write_csv(dailyHist, str_glue("{varDir}/{metAbv}.{var}.dailyHist.csv"))
-        
         
         # Monthly Historical Averages
         monthlyHist <- varData_cleaned %>% 
@@ -401,7 +408,6 @@ advDataPull <- function(metAbv) {
         # Store seasonally-averaged data frame as variable.seasonal.csv
         write_csv(monthlyHist, str_glue("{varDir}/{metAbv}.{var}.monthlyHist.csv"))
         
-        
         # Seasonal Historical Averages
         seasonalHist <- varData_cleaned %>% 
           group_by(season) %>% 
@@ -413,7 +419,7 @@ advDataPull <- function(metAbv) {
         
         # Store seasonally-averaged data frame as variable.seasonal.csv
         write_csv(seasonalHist, str_glue("{varDir}/{metAbv}.{var}.seasonalHist.csv"))
-        
+      
       }
     }
   }
