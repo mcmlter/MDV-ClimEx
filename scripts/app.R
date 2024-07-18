@@ -54,13 +54,10 @@ ui <- fluidPage(
                   choices = NULL),
       selectInput(inputId = "input.variable", "Variable of Interest", 
                   choices = NULL),
-      selectInput(inputId = "input.timescale", "Timescale",
-                  choices = c("Daily",
-                              "Monthly",
-                              "Seasonal")),
       radioButtons(inputId = "input.plotType", "Plot Type",
                   choices = c("Standard",
                               "Historical Comparison")),
+      uiOutput("timescaleUI"),
       tabsetPanel(id = "plotSpecs",
                   type = "hidden",
                   tabPanel(title = "Standard"),
@@ -351,28 +348,35 @@ server <- function(input, output) {
                       choices = paramVars())
   })
   
-  
-  # Update plot types when a variable is chosen
-  
-  observeEvent(input$input.variable, {
-    # If wind direction or speed are selected, update the select plot type input to include "Wind Rose"
-    if (input$input.variable == "Wind Direction (° from north)" | input$input.variable == "Wind Speed (m/s)") {
-      updateRadioButtons(inputId = "input.plotType", 
-                        choices = c("Standard",
-                                    "Historical Comparison",
-                                    "Wind Rose"))
-    } else {
-      # Otherwise, only show "Standard" and "Historical Comparison" plotting options
-      updateRadioButtons(inputId = "input.plotType",
-                        choices = c("Standard",
-                                    "Historical Comparison"))
+  # Don't display timescale when wind rose plot type is selected
+  output$timescaleUI <- renderUI({
+    if (input$input.plotType != "Wind Rose") {
+      selectInput(inputId = "input.timescale", "Timescale",
+                  choices = c("Daily", "Monthly", "Seasonal"))
     }
   })
   
+  # Update plot types when a variable is chosen
+  observeEvent(input$input.variable, {
+    if (input$input.variable == "Wind Direction (° from north)" | input$input.variable == "Wind Speed (m/s)") {
+      updateRadioButtons(inputId = "input.plotType", 
+                         choices = c("Standard",
+                                     "Historical Comparison",
+                                     "Wind Rose"))
+    } else {
+      updateRadioButtons(inputId = "input.plotType",
+                         choices = c("Standard",
+                                     "Historical Comparison"))
+    }
+  })
   
   # Pull in the cleaned data from the chosen meteorological station, parameter suite, variable for the standard plot
   
   standardData <- reactive({
+    req(input$input.met)
+    req(input$input.param)
+    req(input$input.variable)
+    req(input$input.timescale)
     
     # Store chosen inputs as how they appear in the file name
     
@@ -407,7 +411,6 @@ server <- function(input, output) {
     }
     
     return(data)
-    
   })
   
   
@@ -855,7 +858,7 @@ server <- function(input, output) {
 
   # Render helper text
   output$windRosePlotText <- renderText({
-    "The wind rose is presented as an aggregate of the entire record and unlike other plot types, does not allow for interaction."
+    "The wind rose plot is presented as an aggregate of the entire record. Unlike other plot types, it does not allow for user interaction."
   })
 }
 
