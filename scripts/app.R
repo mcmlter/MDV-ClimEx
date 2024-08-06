@@ -592,7 +592,7 @@ server <- function(input, output) {
       )
   })
   
-  # Render helper text
+  # Render Helper Text
   output$standardPlotText <- renderText({
     "Navigate, download, or reset the plot using the tools in the upper righthand corner. Click and drag to zoom in."
   })
@@ -852,8 +852,7 @@ server <- function(input, output) {
            y = "Proportion",
            x = NULL)+
       theme(plot.title = element_text(size = 16, hjust = 0.5))
-    
-    
+
   })
 
   # Render helper text
