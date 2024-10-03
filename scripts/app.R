@@ -307,7 +307,7 @@ server <- function(input, output) {
     param <- paramMatchTable %>% 
       filter(names == input$input.param) %>% 
       pull(params)
-    data <- read_csv(file = str_glue("../data/{met}/{met}_{param}/{met}_{param}.csv"))
+    data <- read_csv(file = str_glue("../data/met/{met}/{met}_{param}/{met}_{param}.csv"))
     return(data)
   })
   
@@ -397,15 +397,15 @@ server <- function(input, output) {
     
     # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale for the comparison plot
     if (input$input.timescale == "Seasonal") {
-      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonal.csv")
+      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonal.csv")
       req(file.exists(filePath))
       data <- read_csv(filePath)
     } else if (input$input.timescale == "Monthly") {
-      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.monthly.csv")
+      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.monthly.csv")
       req(file.exists(filePath))
       data <- read_csv(filePath)
     } else if (input$input.timescale == "Daily") {
-      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.daily.csv")
+      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.daily.csv")
       req(file.exists(filePath))
       data <- read_csv(filePath)
     }
@@ -437,15 +437,15 @@ server <- function(input, output) {
     
     # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale
     if (input$input.timescale == "Seasonal") {
-      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonalHist.csv")
+      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonalHist.csv")
       req(file.exists(filePath))
       histData <- read_csv(filePath) 
     } else if (input$input.timescale == "Monthly") {
-      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.monthlyHist.csv")
+      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.monthlyHist.csv")
       req(file.exists(filePath))
       histData <- read_csv(filePath)
     } else if (input$input.timescale == "Daily") {
-      filePath <- str_glue("../data/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.dailyHist.csv")
+      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.dailyHist.csv")
       req(file.exists(filePath))
       histData <- read_csv(filePath)
     }
@@ -510,8 +510,8 @@ server <- function(input, output) {
     varSpd <- "wspd"
     varDir <- "wdir"
     
-    spdData <- read_csv(str_glue("../data/{met}/{met}_{param}/{varSpd}/{met}.{varSpd}.daily.csv"))
-    dirData <- read_csv(str_glue("../data/{met}/{met}_{param}/{varDir}/{met}.{varDir}.daily.csv"))
+    spdData <- read_csv(str_glue("../data/met/{met}/{met}_{param}/{varSpd}/{met}.{varSpd}.daily.csv"))
+    dirData <- read_csv(str_glue("../data/met/{met}/{met}_{param}/{varDir}/{met}.{varDir}.daily.csv"))
     
     # Join speed and direction data by date_time column
     data <- spdData %>% 
