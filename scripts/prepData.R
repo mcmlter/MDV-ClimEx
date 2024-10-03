@@ -134,14 +134,15 @@ advDataPull <- function(metAbv) {
   # Get general entity info
   entityInfo <- getEntityInfo(metAbv)
   
-  # Create data directory if there is not already one
-  if (!file.exists("data")) {
-    dir.create(file.path("data"))
+  # Create data/met directory if there is not already one
+  if (!file.exists("data/met")) {
+    dir.create(file.path("data/met"))
   }
+  
   
   # Create subdirectory for met Station if there is not already one
   if (!file.exists(str_glue("data/met/{metAbv}"))) {
-    dir.create(file.path("data", metAbv))
+    dir.create(file.path("data/met", metAbv))
   }
   
   # Get the included parameter suites and their entityIDs
