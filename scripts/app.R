@@ -307,6 +307,7 @@ server <- function(input, output) {
     param <- paramMatchTable %>% 
       filter(names == input$input.param) %>% 
       pull(params)
+    req(file.exists(str_glue("../data/met/{met}/{met}_{param}/{met}_{param}.csv")))
     data <- read_csv(file = str_glue("../data/met/{met}/{met}_{param}/{met}_{param}.csv"))
     return(data)
   })
