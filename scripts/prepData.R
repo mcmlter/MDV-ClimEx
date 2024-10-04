@@ -458,20 +458,20 @@ advDataPull <- function(metAbv) {
 
 # Series of all possible Met Station 4-letter abbreviations
 metAbvs = c(
-  #"CAAM",
-  #"COHM",
+  "CAAM",
+  "COHM",
   "EXEM",
-  "FRSM"#,
-  #"HODM",
-  #"BOYM",
-  #"BRHM",
-  #"FRLM",
-  #"HOEM",
-  #"VAAM",
-  #"VIAM",
-  #"MISM",
-  #"FLMM",
-  #"TARM"
+  "FRSM",
+  "HODM",
+  "BOYM",
+  "BRHM",
+  "FRLM",
+  "HOEM",
+  "VAAM",
+  "VIAM",
+  "MISM",
+  "FLMM",
+  "TARM"
   )
 
 # Run advDataPull for all met stations in metAbvs
