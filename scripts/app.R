@@ -557,8 +557,8 @@ server <- function(input, output) {
       orderArray <- data$yearseason
     }
     
-    # Store variable actual name
-    varName <- input$input.variable
+    # Store variable actual name, minus the unit
+    varName <-  str_trim(gsub("\\(.*", "", input$input.variable))
     
     # Store met name
     metName <- input$input.met
@@ -616,8 +616,8 @@ server <- function(input, output) {
     # Store variable abbreviation
     varAbv <- varAbv()
     
-    # Store variable actual name
-    varName <- input$input.variable
+    # Store variable actual name, minus the unit
+    varName <-  str_trim(gsub("\\(.*", "", input$input.variable))
     
     # Store met name
     metName <- input$input.met
