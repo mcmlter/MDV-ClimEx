@@ -222,7 +222,7 @@ server <- function(input, output) {
                                           "Wind Speed and Direction",
                                           "Soil Temperature"))
   
-  # Table of possible variables and their laynames 
+  # Table of possible variables, their laynames, and their laynames with units
   varMatchTable <- data.frame(vars = c("airt2m",
                                        "airt1m",
                                        "airt3m",
@@ -241,25 +241,50 @@ server <- function(input, output) {
                                        "soilt5cm",
                                        "soilt10cm",
                                        "pressta"),
-                           names = c("Air Temperature (°C) at 2m",
-                                     "Air Temperature (°C) at 1m",
-                                     "Air Temperature (°C) at 3m",
-                                     "Incoming Shortwave Radiation (W/m^2)",
-                                     "Outgoing Shortwave Radiation (W/m^2)",
-                                     "Relative Humidity (%) at 2m",
-                                     "Relative Humidity (%) at 1m",
-                                     "Relative Humidity (%) at 3m",
-                                     "Wind Speed (m/s)",
-                                     "Wind Direction (° from north)",
-                                     "Incoming Longwave Radiation (W/m^2)",
-                                     "Outgoing Longwave Radiation (W/m^2)	",
-                                     "Relative Humidity (%)",
-                                     "Photosynthetically Active Radiation (W/m^2)",
-                                     "Soil Temperature at 0cm Depth (°C)",
-                                     "Soil Temperature at 5cm Depth (°C)",
-                                     "Soil Temperature at 10cm Depth (°C)",
-                                     "Atmospheric Pressure (mb)")
+                              namesPlain = c("Air Temperature at 2m",
+                                             "Air Temperature at 1m",
+                                             "Air Temperature at 3m",
+                                             "Incoming Shortwave Radiation",
+                                             "Outgoing Shortwave Radiation",
+                                             "Relative Humidity at 2m",
+                                             "Relative Humidity at 1m",
+                                             "Relative Humidity at 3m",
+                                             "Wind Speed",
+                                             "Wind Direction",
+                                             "Incoming Longwave Radiation",
+                                             "Outgoing Longwave Radiation",
+                                             "Relative Humidity",
+                                             "Photosynthetically Active Radiation",
+                                             "Soil Temperature at 0cm Depth",
+                                             "Soil Temperature at 5cm Depth",
+                                             "Soil Temperature at 10cm Depth",
+                                             "Atmospheric Pressure"),
+                              namesUnits = c("Air Temperature (°C) at 2m",
+                                             "Air Temperature (°C) at 1m",
+                                             "Air Temperature (°C) at 3m",
+                                             "Incoming Shortwave Radiation (W/m^2)",
+                                             "Outgoing Shortwave Radiation (W/m^2)",
+                                             "Relative Humidity (%) at 2m",
+                                             "Relative Humidity (%) at 1m",
+                                             "Relative Humidity (%) at 3m",
+                                             "Wind Speed (m/s)",
+                                             "Wind Direction (° from north)",
+                                             "Incoming Longwave Radiation (W/m^2)",
+                                             "Outgoing Longwave Radiation (W/m^2)	",
+                                             "Relative Humidity (%)",
+                                             "Photosynthetically Active Radiation (W/m^2)",
+                                             "Soil Temperature at 0cm Depth (°C)",
+                                             "Soil Temperature at 5cm Depth (°C)",
+                                             "Soil Temperature at 10cm Depth (°C)",
+                                             "Atmospheric Pressure (mb)")
+                           
   )
+  
+  # Replace units with LaTeX format for plotly
+  varMatchTable$namesUnits <- sapply(varMatchTable$namesUnits, function(name) {
+    gsub("(W/m\\^2)", "W*m<sup>-2</sup>", name)
+  })
+  
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   #### Reactive Functions #### 
@@ -312,21 +337,29 @@ server <- function(input, output) {
     return(data)
   })
   
-  # Get the laynames of the columns containing meteorological variables (the only numeric columns) from the rawData
+  # Get the plain laynames of the columns containing meteorological variables (the only numeric columns) from the rawData
   paramVars <- reactive({
     a <- paramData() %>% 
       select(where(is.double)) %>% 
       colnames()
     b <- varMatchTable %>% 
       filter(vars %in% a) %>% 
-      pull(names)
+      pull(namesPlain)
     return(b)
+  })
+  
+  # Get the unit-containing laynames of the chosen input variable
+  varUnits <- reactive({
+    a <- varMatchTable %>% 
+      filter(namesPlain == input$input.variable) %>% 
+      pull(namesUnits)
+    return(a)
   })
   
   # Get the abbreviation of the chosen input variable
   varAbv <- reactive({
     a <- varMatchTable %>% 
-      filter(names == input$input.variable) %>% 
+      filter(namesPlain == input$input.variable) %>% 
       pull(vars)
     return(a)
   })
@@ -393,7 +426,7 @@ server <- function(input, output) {
     
     # Variable abbreviation
     varAbv <- varMatchTable %>% 
-      filter(names == input$input.variable) %>% 
+      filter(namesPlain == input$input.variable) %>% 
       pull(vars)
     
     # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale for the comparison plot
@@ -433,7 +466,7 @@ server <- function(input, output) {
     
     # Variable abbreviation
     varAbv <- varMatchTable %>% 
-      filter(names == input$input.variable) %>% 
+      filter(namesPlain == input$input.variable) %>% 
       pull(vars)
     
     # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale
@@ -558,13 +591,16 @@ server <- function(input, output) {
     }
     
     # Store variable actual name, minus the unit
-    varName <-  str_trim(gsub("\\(.*", "", input$input.variable))
+    varTitle <-  input$input.variable
+    
+    # Store variable actual name, with the unit, for the axes
+    varAxis <- varUnits()
     
     # Store met name
     metName <- input$input.met
     
     # Create title from varName and metName
-    title <- str_glue("{timeSeries} {varName} at {metName}")
+    title <- str_glue("{timeSeries} {varTitle} at {metName}")
     
     # Create Plot
     plot_ly() %>% 
@@ -585,7 +621,7 @@ server <- function(input, output) {
                      categoryorder = "array",
                      categoryarray = orderArray,
                      nticks = 6),
-        yaxis = list(title = varName),
+        yaxis = list(title = varAxis),
         margin = list(l = 60, 
                       r = 50, 
                       t = 50, 
@@ -617,7 +653,10 @@ server <- function(input, output) {
     varAbv <- varAbv()
     
     # Store variable actual name, minus the unit
-    varName <-  str_trim(gsub("\\(.*", "", input$input.variable))
+    varTitle <-  input$input.variable
+    
+    # Store variable actual name, with the unit, for the axes
+    varAxis <- varUnits()
     
     # Store met name
     metName <- input$input.met
@@ -629,7 +668,7 @@ server <- function(input, output) {
     chosenYear <- as.character(input$input.chosenYear)
     
     # Create title from varName and metName
-    title <- str_glue("{varName} at {metName} during {chosenYear} vs Averages")
+    title <- str_glue("{varTitle} at {metName} during {chosenYear} vs Averages")
     
     # Prepare data for plotting depending on user inputs
     
@@ -800,7 +839,7 @@ server <- function(input, output) {
                           type = "category",
                           categoryorder = "array",
                           categoryarray = orderArray),
-             yaxis = list(title = varName),
+             yaxis = list(title = varAxis),
              legend = list(text = "Chosen Year"),
              margin = list(l = 70, 
                            r = 50, 
