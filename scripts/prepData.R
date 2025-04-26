@@ -1,20 +1,11 @@
 #### PURPOSE: PART 1 ####
-# The first part of this script compiles the most recent unique identifiers for high frequency meteorological data 
-# collected by met stations at the McMurdo Dry Valleys Long Term Ecological Research project. The met data is housed 
-# at the Environmental Data Initiative repository, and can be accessed using the EDIutils package. In order to pull 
-# the most recent data, the most recent unique entityID-paramID string for each station-parameter combination must 
-# be accessible. 
-#
-# The result of this script is a csv file that specifies the most recent entity IDs for each station 
-# and the names for the meteorological variables stored within. Later, when data is fetched from EDI, this 
-# csv will be referenced. A function, getEntityInfo is also created that outputs the latest entity ID and data 
-# available for a given EDI entity.
+# The first part of this script compiles the most recent unique identifiers for high frequency meteorological data collected by met stations at the McMurdo Dry Valleys Long Term Ecological Research project. The met data is housed at the Environmental Data Initiative repository, and can be accessed using the EDIutils package. In order to pull the most recent data, the most recent unique entityID-paramID string for each station-parameter combination must be accessible. 
+
+# The result of this script is a csv file that specifies the most recent entity IDs for each station and the names for the meteorological variables stored within. Later, when data is fetched from EDI, this csv will be referenced. A function, getEntityInfo is also created that outputs the latest entity ID and data available for a given EDI entity.
 
 
 #### PURPOSE: PART 2 ####
-# The second part of this script compiles all high frequency met station data from the McMurdo Dry Valleys Long Term 
-# Ecological Research project. The result is a separate CSV file for each met station, each of which contains the 
-# meteorological variables measured by each station.
+# The second part of this script compiles all high frequency met station data from the McMurdo Dry Valleys Long Term Ecological Research project. The result is a separate CSV file for each met station, each of which contains the meteorological variables measured by each station.
 
 
 # Authors: Gavin P. Wagner (gavin.wagner@rutgers.edu), with contributions from Renée F. Brown (rfbrown@unm.edu)
