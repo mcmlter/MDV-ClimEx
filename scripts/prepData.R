@@ -131,19 +131,9 @@ advDataPull <- function(metAbv) {
   # Get general entity info
   entityInfo <- getEntityInfo(metAbv)
   
-  # Create data directory if there is not already one
-  if (!file.exists("data")) {
-    dir.create(file.path("data"))
-  }
-  
-  # Create data/met directory if there is not already one
-  if (!file.exists("data/met")) {
-    dir.create(file.path("data/met"))
-  }
-  
-  # Create subdirectory for met Station if there is not already one
+  # Create data directories if they do not exist
   if (!file.exists(str_glue("data/met/{metAbv}"))) {
-    dir.create(file.path("data/met", metAbv))
+    dir.create(file.path("data/met", metAbv), recursive = TRUE)
   }
   
   # Get the latest revision of the met station's data entity
@@ -156,7 +146,7 @@ advDataPull <- function(metAbv) {
   #  Check if revision file exists.
   if (file.exists(revFile)) {
     # If yes, pull in the stored revision.
-    storedRevision <- read_csv(revFile)
+    storedRevision <- read_csv(revFile, show_col_types = FALSE)
   } else {
     # If not, store the the latest revision in the met's directory. Create a dummy stored revision
     write_csv(latestRevision, revFile)
@@ -180,7 +170,7 @@ advDataPull <- function(metAbv) {
                                 entityId)
     
     # Read raw dataset into a data frame containing all of the variables
-    data <- read_csv(file = rawData)
+    data <- read_csv(file = rawData, show_col_types = FALSE)
     
     
     ###### Processing Data ######
@@ -221,7 +211,7 @@ advDataPull <- function(metAbv) {
     # Aggregate over the month
     monthlyData <- data %>%
       group_by(year, month, yearmonth) %>%
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE))) # numerical data starts at column 11
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop") # numerical data starts at column 11
     
     # Replace a NaN values with NA
     monthlyData <- monthlyData %>%
@@ -235,7 +225,7 @@ advDataPull <- function(metAbv) {
     # Aggregate over the season
     seasonalData <- data %>% 
       group_by(year, season, yearseason) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE))) # numerical data starts at column 11
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop") # numerical data starts at column 11
     
     # Replace a NaN values with NA
     seasonalData <- seasonalData %>%
@@ -249,39 +239,38 @@ advDataPull <- function(metAbv) {
     # Process and Store Daily Historical Averages as met.dailyHistAvg.csv
     dailyHistAvg <- data %>%
       group_by(monthday) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)))
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop")
     write_csv(dailyHistAvg, str_glue("data/met/{metAbv}/{metAbv}.DailyHistAvg.csv"))
     
     # Process and Store Daily Standard Deviations as met.dailyHistSD.csv
     dailyHistSD <- data %>%
       group_by(monthday) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)))
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)), .groups = "drop")
     write_csv(dailyHistSD, str_glue("data/met/{metAbv}/{metAbv}.DailyHistSD.csv"))
     
     # Process and Store Monthly Historical Averages as met.monthlyHistAvg.csv
     monthlyHistAvg <- data %>%
       group_by(month) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)))
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop")
     write_csv(monthlyHistAvg, str_glue("data/met/{metAbv}/{metAbv}.MonthlyHistAvg.csv"))
     
     # Process and Store Monthly Standard Deviations as met.monthlyHistSD.csv
     monthlyHistSD <- data %>%
       group_by(month) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)))
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)), .groups = "drop")
     write_csv(monthlyHistSD, str_glue("data/met/{metAbv}/{metAbv}.MonthlyHistSD.csv"))
     
     # Process and Store Seasonal Historical Averages as met.monthlyHistAvg.csv
     seasonalHistAvg <- data %>%
       group_by(season) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)))
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop")
     write_csv(seasonalHistAvg, str_glue("data/met/{metAbv}/{metAbv}.SeasonalHistAvg.csv"))
     
     # Process and Store Seasonal Standard Deviations as met.monthlyHistSD.csv
     seasonalHistSD <- data %>%
       group_by(season) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)))
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)), .groups = "drop")
     write_csv(seasonalHistSD, str_glue("data/met/{metAbv}/{metAbv}.SeasonalHistSD.csv"))
-    
   }
 }
 

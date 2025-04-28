@@ -12,6 +12,10 @@
 #### Clear environment ####
 rm(list=ls(all=TRUE))
 
+#### Create cache directory if it does not exist ####
+if (!file.exists("app_cache")) {
+  dir.create(file.path("app_cache"))
+}
 
 #### Load Required Libraries ####
 library(shiny)
@@ -268,7 +272,7 @@ server <- function(input, output) {
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
     timescale <- input$input.timescale
-    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}.csv"))
+    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}.csv"), show_col_types = FALSE)
     return(data)
   })
   
@@ -278,7 +282,7 @@ server <- function(input, output) {
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
     timescale <- input$input.timescale
-    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistAvg.csv"))
+    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistAvg.csv"), show_col_types = FALSE)
     return(data)
   })
   
@@ -288,7 +292,7 @@ server <- function(input, output) {
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
     timescale <- input$input.timescale
-    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistSD.csv"))
+    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistSD.csv"), show_col_types = FALSE)
     return(data)
   })
   
@@ -313,6 +317,8 @@ server <- function(input, output) {
   
   # Get the abbreviation of the chosen input variable
   varAbv <- reactive({
+    req(input$input.variable)
+    
     a <- varMatchTable %>% 
       filter(namesPlain == input$input.variable) %>% 
       pull(vars)
