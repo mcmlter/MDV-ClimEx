@@ -21,7 +21,6 @@ library(EDIutils)
 library(plotly)
 library(clifro)
 
-
 # Define UI for application
 ui <- fluidPage(
   
@@ -50,14 +49,15 @@ ui <- fluidPage(
                                                      "Taylor Glacier"),
                                  "High Altitude Sites" = c("Friis Hills",
                                                            "Mount Fleming"))),
-      selectInput(inputId = "input.param", "Parameter Suite of Interest", 
-                  choices = NULL),
+      selectInput(inputId = "input.timescale", "Timescale",
+                  choices = c("Daily",
+                              "Monthly",
+                              "Seasonal")),
+      radioButtons(inputId = "input.plotType", "Plot Type",
+                   choices = c("Standard",
+                               "Historical Comparison")),
       selectInput(inputId = "input.variable", "Variable of Interest", 
                   choices = NULL),
-      radioButtons(inputId = "input.plotType", "Plot Type",
-                  choices = c("Standard",
-                              "Historical Comparison")),
-      uiOutput("timescaleUI"),
       tabsetPanel(id = "plotSpecs",
                   type = "hidden",
                   tabPanel(title = "Standard"),
@@ -70,7 +70,7 @@ ui <- fluidPage(
       textOutput("zoom")
     ),
     
-
+    
     # Show the tabs
     mainPanel(
       tabsetPanel(
@@ -99,7 +99,7 @@ ui <- fluidPage(
         )
       )
       
-            
+      
     )
   ),
   # Footer
@@ -112,13 +112,13 @@ ui <- fluidPage(
 
 
 
-
-# Define server logic
+#### Define server logic ####
 server <- function(input, output) {
   
-  #### Parameter Info Function ####
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  getParameterInfo <- function(metID) {
+  
+  ##### Functions #####
+  ###### Function to get info about the chosen met-variable combination ######
+  getmetVarInfo <- function(metID) {
     scope = "knb-lter-mcm"
     metInfo <- data.frame(
       met = c("Canada Glacier",
@@ -169,115 +169,89 @@ server <- function(input, output) {
       filter(metAbv == metID) %>%
       mutate(scope = scope, .before = "identifier") %>%
       mutate(revision = list_data_package_revisions(scope,
-                                                   identifier,
-                                                   filter = "newest"),
+                                                    identifier,
+                                                    filter = "newest"),
              parameterID = paste(scope, identifier, revision, sep = '.'))
     
     return(metInfo)
   }
   
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- 
+  #### Match Tables ####
+  
   # Table of Full Met Station Names and their Corresponding 4-letter Abbreviations
   metMatchTable <- data.frame(mets = c("Canada Glacier",
-                                      "Commonwealth Glacier",
-                                      "Explorers Cove",
-                                      "Friis Hills",
-                                      "Howard Glacier",
-                                      "Lake Bonney",
-                                      "Lake Brownworth",
-                                      "Lake Fryxell",
-                                      "Lake Hoare",
-                                      "Lake Vanda",
-                                      "Lake Vida",
-                                      "Miers Valley",
-                                      "Mount Fleming",
-                                      "Taylor Glacier"),
-                             metAbvs = c("CAAM",
-                                         "COHM",
-                                         "EXEM",
-                                         "FRSM",
-                                         "HODM",
-                                         "BOYM",
-                                         "BRHM",
-                                         "FRLM",
-                                         "HOEM",
-                                         "VAAM",
-                                         "VIAM",
-                                         "MISM",
-                                         "FLMM",
-                                         "TARM"))
-  
-  # Table of possible parameter suites and their laynames
-  paramMatchTable <- data.frame(params = c("AIRT",
-                                           "PRESSTA",
-                                           "RH",
-                                           "RADN",
-                                           "WIND",
-                                           "SOILT"),
-                                names = c("Air Temperature",
-                                          "Barometric Pressure",
-                                          "Relative Humidity",
-                                          "Solar Radiation",
-                                          "Wind Speed and Direction",
-                                          "Soil Temperature"))
+                                       "Commonwealth Glacier",
+                                       "Explorers Cove",
+                                       "Friis Hills",
+                                       "Howard Glacier",
+                                       "Lake Bonney",
+                                       "Lake Brownworth",
+                                       "Lake Fryxell",
+                                       "Lake Hoare",
+                                       "Lake Vanda",
+                                       "Lake Vida",
+                                       "Miers Valley",
+                                       "Mount Fleming",
+                                       "Taylor Glacier"),
+                              metAbvs = c("CAAM",
+                                          "COHM",
+                                          "EXEM",
+                                          "FRSM",
+                                          "HODM",
+                                          "BOYM",
+                                          "BRHM",
+                                          "FRLM",
+                                          "HOEM",
+                                          "VAAM",
+                                          "VIAM",
+                                          "MISM",
+                                          "FLMM",
+                                          "TARM"))
   
   # Table of possible variables, their laynames, and their laynames with units
-  varMatchTable <- data.frame(vars = c("airt2m",
-                                       "airt1m",
-                                       "airt3m",
-                                       "swradin",
-                                       "swradout",
-                                       "rh2m",
-                                       "rh1m",
-                                       "rh3m",
-                                       "wspd",
-                                       "wdir",
-                                       "lwradin2",
-                                       "lwradout2",
-                                       "rh",
-                                       "par",
-                                       "soilt0cm",
-                                       "soilt5cm",
-                                       "soilt10cm",
-                                       "pressta"),
-                              namesPlain = c("Air Temperature at 2m",
-                                             "Air Temperature at 1m",
+  varMatchTable <- data.frame(vars = c("airtemp_1m_degc",
+                                       "airtemp_3m_degc",
+                                       "swradin_wm2",
+                                       "swradout_wm2",
+                                       "rhh2o_3m_pct",
+                                       "wspd_ms",
+                                       "wdir_deg",
+                                       "lwradin2_wm2",
+                                       "lwradout2_wm2",
+                                       "par_umolm2s1",
+                                       "soiltemp1_0cm_degc",
+                                       "soiltemp1_5cm_degc", # Use soiltemp1 or soiltemp 2?
+                                       "soiltemp1_10cm_degc",
+                                       "bpress_mb"),
+                              namesPlain = c("Air Temperature at 1m",
                                              "Air Temperature at 3m",
                                              "Incoming Shortwave Radiation",
                                              "Outgoing Shortwave Radiation",
-                                             "Relative Humidity at 2m",
-                                             "Relative Humidity at 1m",
                                              "Relative Humidity at 3m",
                                              "Wind Speed",
                                              "Wind Direction",
                                              "Incoming Longwave Radiation",
                                              "Outgoing Longwave Radiation",
-                                             "Relative Humidity at  3m",
                                              "Photosynthetically Active Radiation",
                                              "Soil Temperature at 0cm Depth",
                                              "Soil Temperature at 5cm Depth",
                                              "Soil Temperature at 10cm Depth",
                                              "Atmospheric Pressure"),
-                              namesUnits = c("Air Temperature (°C) at 2m",
-                                             "Air Temperature (°C) at 1m",
+                              namesUnits = c("Air Temperature (°C) at 1m",
                                              "Air Temperature (°C) at 3m",
                                              "Incoming Shortwave Radiation (W/m^2)",
                                              "Outgoing Shortwave Radiation (W/m^2)",
-                                             "Relative Humidity (%) at 2m",
-                                             "Relative Humidity (%) at 1m",
                                              "Relative Humidity (%) at 3m",
                                              "Wind Speed (m/s)",
                                              "Wind Direction (° from north)",
                                              "Incoming Longwave Radiation (W/m^2)",
                                              "Outgoing Longwave Radiation (W/m^2)	",
-                                             "Relative Humidity (%) at  3m",
                                              "Photosynthetically Active Radiation (W/m^2)",
                                              "Soil Temperature at 0cm Depth (°C)",
                                              "Soil Temperature at 5cm Depth (°C)",
                                              "Soil Temperature at 10cm Depth (°C)",
                                              "Atmospheric Pressure (mb)")
-                           
+                              
   )
   
   # Replace units with LaTeX format for plotly
@@ -285,61 +259,42 @@ server <- function(input, output) {
     gsub("(W/m\\^2)", "W*m<sup>-2</sup>", name)
   })
   
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-  #### Reactive Functions #### 
-  
-  # Get the list of parameter suites available from the chosen met station
-  metParams <- reactive({
-    a <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
-      filter(mets == input$input.met) %>% 
-      pull(metAbvs)
-    
-    b <- word(read_data_entity_names(getParameterInfo(a)$parameterID)[,"entityName"], 2, sep = "_") # Read parameter IDs in a specified met
-    
-    if (a == "CAAM") {
-      c <- paramMatchTable %>% # Match the parameter IDs to layperson names
-        filter(params %in% b,
-               params != "PRESSTA",
-               params != "ICET") %>% 
-        pull(names)
-    } else if (a == "FRSM") {
-      c <- paramMatchTable %>% # Match the parameter IDs to layperson names
-        filter(params %in% b,
-               params != "RADN") %>% 
-        pull(names)
-    } else {
-      c <- paramMatchTable %>% # Match the parameter IDs to layperson names
-        filter(params %in% b,
-               params != "WVAPD",
-               params != "SOILM",
-               params != "ONYXT",
-               params != "PPT",
-               params != "ICET") %>% 
-        pull(names)
-    }
-    
-    return(c) # Return the names of parameter suites available from the input met
-  })
-  
+  ##### Reactive Functions #####
   # Get variables contained in the file of the chosen parameter suite of the chosen met station
   
-  # Read in the CSV of the corresponding met-parameter combination
-  paramData <- reactive({
+  # Read in the base data CSV of the corresponding met-parameter combination
+  baseData <- reactive({
     met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
-    param <- paramMatchTable %>% 
-      filter(names == input$input.param) %>% 
-      pull(params)
-    req(file.exists(str_glue("../data/met/{met}/{met}_{param}/{met}_{param}.csv")))
-    data <- read_csv(file = str_glue("../data/met/{met}/{met}_{param}/{met}_{param}.csv"))
+    timescale <- input$input.timescale
+    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}.csv"))
     return(data)
   })
   
-  # Get the plain laynames of the columns containing meteorological variables (the only numeric columns) from the rawData
-  paramVars <- reactive({
-    a <- paramData() %>% 
+  # Read in the historical average data CSV of the corresponding met-parameter combination
+  histAvgData <- reactive({
+    met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
+      filter(mets == input$input.met) %>% 
+      pull(metAbvs)
+    timescale <- input$input.timescale
+    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistAvg.csv"))
+    return(data)
+  })
+  
+  # Read in the historical standard deviation CSV of the corresponding met-parameter combination
+  histSDData <- reactive({
+    met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
+      filter(mets == input$input.met) %>% 
+      pull(metAbvs)
+    timescale <- input$input.timescale
+    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistSD.csv"))
+    return(data)
+  })
+  
+  # Get the plain laynames of the columns containing meteorological variables (the only numeric columns) from the base data
+  varNames <- reactive({
+    a <- baseData() %>% 
       select(where(is.double)) %>% 
       colnames()
     b <- varMatchTable %>% 
@@ -363,36 +318,34 @@ server <- function(input, output) {
       pull(vars)
     return(a)
   })
-
-  #### Event Observations ####
   
-  # Update choices when a new met station is selected
+  # Get unique years contained in the chosen dataset
+  uniqYears <- reactive({
+    
+    # Pull Data
+    data <- baseData()
+    
+    # Wait until data is loaded to proceed
+    req(nrow(data) > 0)
+    
+    # Get Unique Years
+    years <- unique(data$year)
+    
+    return(years)
+  })
+  
+  ##### Event Observations #####
+  
+  # Update choices when a new met station + timescale is selected
   observeEvent(input$input.met, {
-    updateSelectInput(inputId = "input.param", 
-                      choices = metParams()) # Update the choices of available parameter suites using metParams()
     updateSelectInput(inputId = "input.variable", 
-                      choices = paramVars()) # Update the choices of variables using paramVars()
+                      choices = varNames()) # Update the choices of variables using paramVars()
     
   })
   
-
-  # Update choices when a new parameter suite is selected
-  observeEvent(input$input.param, {
-    updateSelectInput(inputId = "input.variable", 
-                      choices = paramVars())
-  })
-  
-  # Don't display timescale when wind rose plot type is selected
-  output$timescaleUI <- renderUI({
-    if (input$input.plotType != "Wind Rose") {
-      selectInput(inputId = "input.timescale", "Timescale",
-                  choices = c("Daily", "Monthly", "Seasonal"))
-    }
-  })
-  
-  # Update plot types when a variable is chosen
+  # Update plot types to include wind rose when wind variables (speed or direction) are chosen
   observeEvent(input$input.variable, {
-    if (input$input.variable == "Wind Direction (° from north)" | input$input.variable == "Wind Speed (m/s)") {
+    if (input$input.variable == "Wind Direction" | input$input.variable == "Wind Speed") {
       updateRadioButtons(inputId = "input.plotType", 
                          choices = c("Standard",
                                      "Historical Comparison",
@@ -404,107 +357,7 @@ server <- function(input, output) {
     }
   })
   
-  # Pull in the cleaned data from the chosen meteorological station, parameter suite, variable for the standard plot
-  
-  standardData <- reactive({
-    req(input$input.met)
-    req(input$input.param)
-    req(input$input.variable)
-    req(input$input.timescale)
-    
-    # Store chosen inputs as how they appear in the file name
-    
-    # Meteorological Station abbreviation
-    met <- metMatchTable %>%
-      filter(mets == input$input.met) %>% 
-      pull(metAbvs)
-    
-    # Parameter suite abbreviation
-    param <- paramMatchTable %>% 
-      filter(names == input$input.param) %>% 
-      pull(params)
-    
-    # Variable abbreviation
-    varAbv <- varMatchTable %>% 
-      filter(namesPlain == input$input.variable) %>% 
-      pull(vars)
-    
-    # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale for the comparison plot
-    if (input$input.timescale == "Seasonal") {
-      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonal.csv")
-      req(file.exists(filePath))
-      data <- read_csv(filePath)
-    } else if (input$input.timescale == "Monthly") {
-      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.monthly.csv")
-      req(file.exists(filePath))
-      data <- read_csv(filePath)
-    } else if (input$input.timescale == "Daily") {
-      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.daily.csv")
-      req(file.exists(filePath))
-      data <- read_csv(filePath)
-    }
-    
-    return(data)
-  })
-  
-  
-  # Pull in the historical average data from the chosen meteorological station, parameter suite, variable, and timescale
-  
-  histData <- reactive({
-    
-    # Store chosen inputs as how they appear in the file name
-    
-    # Meteorological Station abbreviation
-    met <- metMatchTable %>%
-      filter(mets == input$input.met) %>% 
-      pull(metAbvs)
-    
-    # Parameter Suite abbreviation
-    param <- paramMatchTable %>% 
-      filter(names == input$input.param) %>% 
-      pull(params)
-    
-    # Variable abbreviation
-    varAbv <- varMatchTable %>% 
-      filter(namesPlain == input$input.variable) %>% 
-      pull(vars)
-    
-    # Choose which cleaned data to pull based on specified meteorological station, parameter suite, variable, and timescale
-    if (input$input.timescale == "Seasonal") {
-      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.seasonalHist.csv")
-      req(file.exists(filePath))
-      histData <- read_csv(filePath) 
-    } else if (input$input.timescale == "Monthly") {
-      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.monthlyHist.csv")
-      req(file.exists(filePath))
-      histData <- read_csv(filePath)
-    } else if (input$input.timescale == "Daily") {
-      filePath <- str_glue("../data/met/{met}/{met}_{param}/{varAbv}/{met}.{varAbv}.dailyHist.csv")
-      req(file.exists(filePath))
-      histData <- read_csv(filePath)
-    }
-    return(histData)
-    
-  })
-  
-  # Get unique years contained in the chosen Standard dataset
-  uniqYears <- reactive({
-    
-    # Pull Data
-    data <- standardData()
-    
-    # Wait until data is loaded to proceed
-    req(nrow(data) > 0)
-    
-    # Get Unique Years
-    years <- unique(data$year)
-    
-    return(years)
-  })
-  
-  
   # Switch plot display tab depending on Plot Type Input AND Display historical comparison plot specifications if this type of plot is chosen
-  
   # Observe the plot type input selection
   observeEvent(input$input.plotType, {
     
@@ -514,10 +367,9 @@ server <- function(input, output) {
     # Display the additional selection dropdowns for the chosen plot type
     updateTabsetPanel(inputId = "plotSpecs", selected = input$input.plotType)
   })
-
-
-  # Update the choices in the "Choose Year to Plot" dropdown based on what years are available in the dataset
   
+  
+  # Update the choices in the "Choose Year to Plot" dropdown based on what years are available in the dataset
   # Observe the plot type input selection
   observeEvent(input$input.plotType, {
     
@@ -526,42 +378,13 @@ server <- function(input, output) {
                       choices = uniqYears())
   })
   
+  ##### Render Plots #####
   
-  # Create reactive function to pull wind direction and wind speed data together
-  windRoseData <- reactive({
-    
-    # Store chosen inputs as how they appear in the file name
-    
-    # Meteorological Station abbreviation
-    met <- metMatchTable %>%
-      filter(mets == input$input.met) %>% 
-      pull(metAbvs)
-    
-    # Parameter Suite abbreviation (Always "WIND")
-    param <- "WIND"
-    
-    # Variable abbreviations (Always "wspd" and "wdir")
-    varSpd <- "wspd"
-    varDir <- "wdir"
-    
-    spdData <- read_csv(str_glue("../data/met/{met}/{met}_{param}/{varSpd}/{met}.{varSpd}.daily.csv"))
-    dirData <- read_csv(str_glue("../data/met/{met}/{met}_{param}/{varDir}/{met}.{varDir}.daily.csv"))
-    
-    # Join speed and direction data by date_time column
-    data <- spdData %>% 
-      select(date_time, wspd) %>% 
-      right_join(dirData)
-    
-    # Return modified data frame
-    return(data)
-    
-  })
-  
-  # Render Standard Plot of Chosen Data
+  ###### Standard Plot ######
   output$standardPlot <- renderPlotly({
     
     # Pull data
-    data <- standardData() 
+    data <- baseData() 
     
     # Wait until data is loaded to proceed
     req(nrow(data) > 0)
@@ -575,19 +398,18 @@ server <- function(input, output) {
     if(input$input.timescale == "Daily") {
       timescale <- "date_time"
       timeSeries <- "Daily"
-      orderArray <-  data$date_time
       
       # If "Monthly" timescale is chosen, the pertinent time column is "yearmonth".
     } else if(input$input.timescale == "Monthly") {
       timescale <- "yearmonth"
       timeSeries <- "Monthly"
-      orderArray <- data$yearmonth
+      orderArray <-  data$yearmonth
       
       # If "Seasonal" timescale is chosen, the pertinent time column is "yearSeason".
     } else if(input$input.timescale == "Seasonal") {
       timescale <- "yearseason"
       timeSeries <- "Seasonal"
-      orderArray <- data$yearseason
+      orderArray <-  data$yearseason
     }
     
     # Store variable actual name, minus the unit
@@ -603,30 +425,55 @@ server <- function(input, output) {
     title <- str_glue("{timeSeries} {varTitle} at {metName}")
     
     # Create Plot
-    plot_ly() %>% 
+    # If daily timsecale is chosen, normal x axes formatting works.
+    if(input$input.timescale == "Daily") {
       
-      # Add a line trace for the chosen variable over the chosen timescale 
-      add_trace(x = data[[timescale]],
-                y = data[[varAbv()]],
-                type = "scatter",
-                mode = "lines",
-                name = varAbv,
-                hovertemplate = '%{x}: %{y}') %>% 
+      plot_ly() %>% 
+        
+        # Add a line trace for the chosen variable over the chosen timescale 
+        add_trace(x = data[[timescale]],
+                  y = data[[varAbv()]],
+                  type = "scatter",
+                  mode = "lines",
+                  name = varAbv,
+                  hovertemplate = '%{x}: %{y}') %>% 
+        layout(
+          title = title,
+          xaxis = list(title = "Date"),
+          yaxis = list(title = varAxis),
+          margin = list(l = 60, 
+                        r = 50, 
+                        t = 50, 
+                        b = 70)
+        )
       
-      # Set plot, x-axis, and y-axis titles
-      layout(
-        title = title,
-        xaxis = list(title = "Date",
-                     type = "category",
-                     categoryorder = "array",
-                     categoryarray = orderArray,
-                     nticks = 6),
-        yaxis = list(title = varAxis),
-        margin = list(l = 60, 
-                      r = 50, 
-                      t = 50, 
-                      b = 70)
-      )
+      # If monthly or seasonal timescales are chosen, categorical x axes formatting is needed
+    } else {
+      
+      plot_ly() %>% 
+        
+        # Add a line trace for the chosen variable over the chosen timescale 
+        add_trace(x = data[[timescale]],
+                  y = data[[varAbv()]],
+                  type = "scatter",
+                  mode = "lines",
+                  name = varAbv,
+                  hovertemplate = '%{x}: %{y}') %>% 
+        layout(
+          title = title,
+          xaxis = list(title = "Date",
+                       type = "category",
+                       categoryorder = "array",
+                       categoryarray = orderArray,
+                       nticks = 6),
+          yaxis = list(title = varAxis),
+          margin = list(l = 60, 
+                        r = 50, 
+                        t = 50, 
+                        b = 70)
+        )
+    }
+    
   })
   
   # Render Helper Text
@@ -634,20 +481,28 @@ server <- function(input, output) {
     "Navigate, download, or reset the plot using the tools in the upper righthand corner. Click and drag to zoom in."
   })
   
-  # Render Historical Comparison Plot, comparing daily, seasonal, or monthly data with historical averages
-  output$historicalPlot <- renderPlotly({
+  ###### Historical Comparison Plot ######
   
+  output$historicalPlot <- renderPlotly({
+    
     # Pull standard data
-    data <- standardData() 
+    data <- baseData() 
     
     # Wait until standard data is loaded to proceed
     req(nrow(data) > 0)
     
     # Pull historical average data
-    histAvgs <- histData()
+    histAvgData <- histAvgData()
     
-    # Wait until historical data is loaded to proceed
-    req(nrow(histAvgs) > 0)
+    # Wait until historical average data is loaded to proceed
+    req(nrow(histAvgData) > 0)
+    
+    # Pull in historical standard deviation data
+    histSDData <- histSDData()
+    
+    # Wait until historical standard deviation data is loaded to proceed
+    req(nrow(histSDData) > 0)
+    
     
     # Store variable abbreviation
     varAbv <- varAbv()
@@ -690,8 +545,11 @@ server <- function(input, output) {
       # Store order of x axis values. In this case, it is the month and day.
       orderArray <- dataMatrix$monthday
       
-      # Arrange the historical average dataset in calendar order (need to do this because monthday is a character and the default is to go in alphabetical order)
-      histAvgs <- histAvgs %>% 
+      # Arrange the historical average and standard deviation datasets in calendar order (need to do this because monthday is a character and the default is to go in alphabetical order)
+      histAvgData <- histAvgData %>% 
+        arrange(match(monthday, orderArray))
+      
+      histSDData <- histSDData %>% 
         arrange(match(monthday, orderArray))
       
       # If "Monthly" timescale is chosen, the pertinent time column is the month abbreviation, "monthAbb".
@@ -714,8 +572,8 @@ server <- function(input, output) {
       orderArray <- month.abb
       
       # Create month abbreviation column in histAvgs (PLACE IN metdatafetch.R LATER)
-      histAvgs <- histAvgs%>% 
-        mutate(monthAbb = month.abb[month], .before = histAvg)
+      histAvgData <- histAvgData%>% 
+        mutate(monthAbb = month.abb[month], .after = month)
       
       # If "Seasonal" timescale is chosen, the pertinent time column is the name of the season, "season".
     } else if(input$input.timescale == "Seasonal") {
@@ -739,20 +597,21 @@ server <- function(input, output) {
       orderArray <- seasonOrder
       
       # Arrange histAvgs entries in the following order: Winter, Spring, Summer, Autumn
-      histAvgs <- histAvgs %>% 
+      histAvgData <- histAvgData %>% 
         arrange(match(season, seasonOrder))
     }
-   
-    # Wait until dataMatrix and histAvgs are loaded to proceed
+    
+    # Wait until dataMatrix, histAvgData, and histSDData are loaded to proceed
     req(nrow(dataMatrix) > 0)
-    req(nrow(histAvgs) > 0)
+    req(nrow(histAvgData) > 0)
+    req(nrow(histSDData) > 0)
     
     # Create Plot
     plot_ly() %>%
       
       # Add a line trace for 3σ above historical average
-      add_trace(x = histAvgs[[timescale]],
-                y = histAvgs$histAvg + 3*histAvgs$sdVal,
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] + 3*histSDData[[varAbv]],
                 type = "scatter", 
                 mode = "lines",
                 line = list(color = 'transparent'),
@@ -761,8 +620,8 @@ server <- function(input, output) {
                 hovertemplate = '%{y}') %>%
       
       # Add a line trace for 3σ below historical average
-      add_trace(x = histAvgs[[timescale]],
-                y = histAvgs$histAvg - 3*histAvgs$sdVal,
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] - 3*histSDData[[varAbv]],
                 type = "scatter", 
                 mode = "lines", 
                 fill = "tonexty", fillcolor='rgba(0,100,120,0.2)', line = list(color = 'transparent'),
@@ -771,8 +630,8 @@ server <- function(input, output) {
                 hovertemplate = '%{y}') %>%
       
       # Add a line trace for 2σ above historical average
-      add_trace(x = histAvgs[[timescale]],
-                y = histAvgs$histAvg + 2*histAvgs$sdVal,
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] + 2*histSDData[[varAbv]],
                 type = "scatter", 
                 mode = "lines",
                 line = list(color = 'transparent'),
@@ -781,8 +640,8 @@ server <- function(input, output) {
                 hovertemplate = '%{y}') %>%
       
       # Add a line trace for 2σ below historical average
-      add_trace(x = histAvgs[[timescale]],
-                y = histAvgs$histAvg - 2*histAvgs$sdVal,
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] - 2*histSDData[[varAbv]],
                 type = "scatter", 
                 mode = "lines", 
                 fill = "tonexty", fillcolor='rgba(0,100,100,0.2)', line = list(color = 'transparent'),
@@ -791,8 +650,8 @@ server <- function(input, output) {
                 hovertemplate = '%{y}') %>%
       
       # Add a line trace for 1σ above historical average
-      add_trace(x = histAvgs[[timescale]],
-                y = histAvgs$histAvg + histAvgs$sdVal,
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] + histSDData[[varAbv]],
                 type = "scatter", 
                 mode = "lines", 
                 line = list(color = 'transparent'),
@@ -801,8 +660,8 @@ server <- function(input, output) {
                 hovertemplate = '%{y}') %>%
       
       # Add a line trace for 1σ below historical average
-      add_trace(x = histAvgs[[timescale]],
-                y = histAvgs$histAvg - histAvgs$sdVal,
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] - histSDData[[varAbv]],
                 type = "scatter", 
                 mode = "lines", 
                 fill = "tonexty", fillcolor='rgba(0,100,80,0.2)', line = list(color = 'transparent'),
@@ -811,8 +670,8 @@ server <- function(input, output) {
                 hovertemplate = '%{y}') %>%
       
       # Add a line trace for the historical average of the chosen variable over the chosen timescale
-      add_trace(x = histAvgs[[timescale]],
-                y = histAvgs$histAvg,
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]],
                 type = "scatter", 
                 line = list(color="black"),
                 mode = "lines", 
@@ -824,14 +683,12 @@ server <- function(input, output) {
                 y = dataMatrix[[chosenYear]],
                 type = "scatter", 
                 text = round(
-                  (dataMatrix[[chosenYear]] - histAvgs[["histAvg"]])
-                  /histAvgs[["sdVal"]], 2),
+                  (dataMatrix[[chosenYear]] - histAvgData[[varAbv]])
+                  /histSDData[[varAbv]], 2),
                 mode = "lines",
                 line = list(color="brown"),
                 name = chosenYear,
                 hovertemplate = '%{y}, %{text}σ from the historical average') %>% 
-      
-     
       
       # Set plot, xaxis, and yaxis titles. Show legend. Create hover popup.
       layout(title = title,
@@ -856,17 +713,15 @@ server <- function(input, output) {
     standard deviations (σ) from the mean. Navigate, download, or reset the plot using the tools in the upper righthand 
     corner. Click and drag to zoom in."
   })
-
   
-  # Render Wind Rose Plot
-  
+  ###### Wind Rose Plot ######
   output$windRosePlot <- renderPlot({
     
     # Store data
-    data <- windRoseData()
+    data <- baseData()
     
-    # Wait until data is loaded to proceed
-    req(nrow(data) > 0)
+    # Ensure data is loaded and contains required columns
+    req(nrow(data) > 0, "wspd_ms" %in% colnames(data), "wdir_deg" %in% colnames(data))
     
     # Store variable abbreviation
     varAbv <- varAbv()
@@ -877,14 +732,13 @@ server <- function(input, output) {
     # Store met name
     metName <- input$input.met
     
-    
     # Create title from varName and metName
     title <- str_glue("Wind Speed and Direction at {metName}")
     
     # Create Wind Rose Plot
     windrose(
-      speed = data$wspd,
-      direction = data$wdir,
+      speed = data$wspd_ms,
+      direction = data$wdir_deg,
       col_pal = "YlGnBu",
       legend_title = "Wind Speed (m/s)")+
       theme_bw()+
@@ -892,20 +746,17 @@ server <- function(input, output) {
            y = "Proportion",
            x = NULL)+
       theme(plot.title = element_text(size = 16, hjust = 0.5))
-
+    
   })
-
+  
   # Render helper text
   output$windRosePlotText <- renderText({
     "The wind rose plot is presented as an aggregate of the entire record. Unlike other plot types, it does not allow for user interaction."
   })
+  
 }
+
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
