@@ -49,16 +49,15 @@ ui <- fluidPage(
                                                      "Taylor Glacier"),
                                  "High Altitude Sites" = c("Friis Hills",
                                                            "Mount Fleming"))),
+      selectInput(inputId = "input.timescale", "Timescale",
+                  choices = c("Daily",
+                              "Monthly",
+                              "Seasonal")),
       radioButtons(inputId = "input.plotType", "Plot Type",
                    choices = c("Standard",
                                "Historical Comparison")),
       selectInput(inputId = "input.variable", "Variable of Interest", 
                   choices = NULL),
-      selectInput(inputId = "input.timescale", "Timescale",
-                  choices = c("Daily",
-                              "Monthly",
-                              "Seasonal")),
-      uiOutput("timescaleUI"),
       tabsetPanel(id = "plotSpecs",
                   type = "hidden",
                   tabPanel(title = "Standard"),
@@ -113,13 +112,13 @@ ui <- fluidPage(
 
 
 
-# Define server logic
+#### Define server logic ####
 server <- function(input, output) {
   
   
-  #### Parameter Info Function ####
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  getParameterInfo <- function(metID) {
+  ##### Functions #####
+  ###### Function to get info about the chosen met-variable combination ######
+  getmetVarInfo <- function(metID) {
     scope = "knb-lter-mcm"
     metInfo <- data.frame(
       met = c("Canada Glacier",
@@ -177,7 +176,7 @@ server <- function(input, output) {
     return(metInfo)
   }
   
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #### Match Tables ####
   
   # Table of Full Met Station Names and their Corresponding 4-letter Abbreviations
   metMatchTable <- data.frame(mets = c("Canada Glacier",
@@ -260,7 +259,7 @@ server <- function(input, output) {
     gsub("(W/m\\^2)", "W*m<sup>-2</sup>", name)
   })
   
-  
+  ##### Reactive Functions #####
   # Get variables contained in the file of the chosen parameter suite of the chosen met station
   
   # Read in the base data CSV of the corresponding met-parameter combination
@@ -268,13 +267,8 @@ server <- function(input, output) {
     met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
-    var <- varMatchTable %>% 
-      filter(names == input$input.variable) %>% 
-      pull(params)
     timescale <- input$input.timescale
-    baseData <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}.csv"))
-    histAvgData <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistAvg.csv"))
-    histSDData <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistSD.csv"))
+    data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}.csv"))
     return(data)
   })
   
@@ -283,9 +277,6 @@ server <- function(input, output) {
     met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
-    var <- varMatchTable %>% 
-      filter(names == input$input.variable) %>% 
-      pull(params)
     timescale <- input$input.timescale
     data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistAvg.csv"))
     return(data)
@@ -296,9 +287,6 @@ server <- function(input, output) {
     met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
       pull(metAbvs)
-    var <- varMatchTable %>% 
-      filter(names == input$input.variable) %>% 
-      pull(params)
     timescale <- input$input.timescale
     data <- read_csv(file = str_glue("../data/met/{met}/{met}.{timescale}HistSD.csv"))
     return(data)
@@ -331,14 +319,441 @@ server <- function(input, output) {
     return(a)
   })
   
-  #### Event Observations ####
+  # Get unique years contained in the chosen dataset
+  uniqYears <- reactive({
+    
+    # Pull Data
+    data <- baseData()
+    
+    # Wait until data is loaded to proceed
+    req(nrow(data) > 0)
+    
+    # Get Unique Years
+    years <- unique(data$year)
+    
+    return(years)
+  })
   
-  # Update choices when a new met station is selected
+  ##### Event Observations #####
+  
+  # Update choices when a new met station + timescale is selected
   observeEvent(input$input.met, {
     updateSelectInput(inputId = "input.variable", 
                       choices = varNames()) # Update the choices of variables using paramVars()
     
   })
+  
+  # Update plot types to include wind rose when wind variables (speed or direction) are chosen
+  observeEvent(input$input.variable, {
+    if (input$input.variable == "Wind Direction" | input$input.variable == "Wind Speed") {
+      updateRadioButtons(inputId = "input.plotType", 
+                         choices = c("Standard",
+                                     "Historical Comparison",
+                                     "Wind Rose"))
+    } else {
+      updateRadioButtons(inputId = "input.plotType",
+                         choices = c("Standard",
+                                     "Historical Comparison"))
+    }
+  })
+  
+  # Switch plot display tab depending on Plot Type Input AND Display historical comparison plot specifications if this type of plot is chosen
+  # Observe the plot type input selection
+  observeEvent(input$input.plotType, {
+    
+    # Display the plot tab that corresponds to the chosen plot type 
+    updateTabsetPanel(inputId = "plotTabs", selected = input$input.plotType)
+    
+    # Display the additional selection dropdowns for the chosen plot type
+    updateTabsetPanel(inputId = "plotSpecs", selected = input$input.plotType)
+  })
+  
+  
+  # Update the choices in the "Choose Year to Plot" dropdown based on what years are available in the dataset
+  # Observe the plot type input selection
+  observeEvent(input$input.plotType, {
+    
+    # Populate select input with unique years in chosen data
+    updateSelectInput(inputId = "input.chosenYear",
+                      choices = uniqYears())
+  })
+  
+  ##### Render Plots #####
+  
+  ###### Standard Plot ######
+  output$standardPlot <- renderPlotly({
+    
+    # Pull data
+    data <- baseData() 
+    
+    # Wait until data is loaded to proceed
+    req(nrow(data) > 0)
+    
+    # Store variable abbreviation
+    varAbv <- varAbv()
+    
+    # Store the chosen timescale and the order of the time series. The order is needed to prevent alphabetical sorting of x axis values for yearmonth and yearSeason
+    
+    # If "Daily" timescale is chosen, the pertinent time column is "date_time".
+    if(input$input.timescale == "Daily") {
+      timescale <- "date_time"
+      timeSeries <- "Daily"
+      
+      # If "Monthly" timescale is chosen, the pertinent time column is "yearmonth".
+    } else if(input$input.timescale == "Monthly") {
+      timescale <- "yearmonth"
+      timeSeries <- "Monthly"
+      orderArray <-  data$yearmonth
+      
+      # If "Seasonal" timescale is chosen, the pertinent time column is "yearSeason".
+    } else if(input$input.timescale == "Seasonal") {
+      timescale <- "yearseason"
+      timeSeries <- "Seasonal"
+      orderArray <-  data$yearseason
+    }
+    
+    # Store variable actual name, minus the unit
+    varTitle <-  input$input.variable
+    
+    # Store variable actual name, with the unit, for the axes
+    varAxis <- varUnits()
+    
+    # Store met name
+    metName <- input$input.met
+    
+    # Create title from varName and metName
+    title <- str_glue("{timeSeries} {varTitle} at {metName}")
+    
+    # Create Plot
+    # If daily timsecale is chosen, normal x axes formatting works.
+    if(input$input.timescale == "Daily") {
+      
+      plot_ly() %>% 
+        
+        # Add a line trace for the chosen variable over the chosen timescale 
+        add_trace(x = data[[timescale]],
+                  y = data[[varAbv()]],
+                  type = "scatter",
+                  mode = "lines",
+                  name = varAbv,
+                  hovertemplate = '%{x}: %{y}') %>% 
+        layout(
+          title = title,
+          xaxis = list(title = "Date"),
+          yaxis = list(title = varAxis),
+          margin = list(l = 60, 
+                        r = 50, 
+                        t = 50, 
+                        b = 70)
+        )
+      
+    # If monthly or seasonal timescales are chosen, categorical x axes formatting is needed
+    } else {
+      
+      plot_ly() %>% 
+        
+        # Add a line trace for the chosen variable over the chosen timescale 
+        add_trace(x = data[[timescale]],
+                  y = data[[varAbv()]],
+                  type = "scatter",
+                  mode = "lines",
+                  name = varAbv,
+                  hovertemplate = '%{x}: %{y}') %>% 
+        layout(
+          title = title,
+          xaxis = list(title = "Date",
+                       type = "category",
+                       categoryorder = "array",
+                       categoryarray = orderArray,
+                       nticks = 6),
+          yaxis = list(title = varAxis),
+          margin = list(l = 60, 
+                        r = 50, 
+                        t = 50, 
+                        b = 70)
+        )
+    }
+
+  })
+  
+  # Render Helper Text
+  output$standardPlotText <- renderText({
+    "Navigate, download, or reset the plot using the tools in the upper righthand corner. Click and drag to zoom in."
+  })
+  
+  ###### Historical Comparison Plot ######
+  
+  output$historicalPlot <- renderPlotly({
+    
+    # Pull standard data
+    data <- baseData() 
+    
+    # Wait until standard data is loaded to proceed
+    req(nrow(data) > 0)
+    
+    # Pull historical average data
+    histAvgData <- histAvgData()
+    
+    # Wait until historical average data is loaded to proceed
+    req(nrow(histAvgData) > 0)
+    
+    # Pull in historical standard deviation data
+    histSDData <- histSDData()
+    
+    # Wait until historical standard deviation data is loaded to proceed
+    req(nrow(histSDData) > 0)
+    
+    
+    # Store variable abbreviation
+    varAbv <- varAbv()
+    
+    # Store variable actual name, minus the unit
+    varTitle <-  input$input.variable
+    
+    # Store variable actual name, with the unit, for the axes
+    varAxis <- varUnits()
+    
+    # Store met name
+    metName <- input$input.met
+    
+    # Store number of years included
+    nVal <- length(uniqYears())
+    
+    # Store chosen comparison year
+    chosenYear <- as.character(input$input.chosenYear)
+    
+    # Create title from varName and metName
+    title <- str_glue("{varTitle} at {metName} during {chosenYear} vs Averages")
+    
+    # Prepare data for plotting depending on user inputs
+    
+    # If "Daily" timescale is chosen, the pertinent time column is the corresponding date in 2020, "fakedate".
+    if(input$input.timescale == "Daily") {
+      
+      # Set Timescale
+      timescale <- "monthday"
+      
+      # Widen data to accommodate year-by-year plotting
+      dataMatrix <- data %>% 
+        arrange(date_time) %>% 
+        pivot_wider(id_cols = c("fakedate", "monthday"), names_from = "year", values_from = varAbv) %>% 
+        arrange(fakedate)
+      
+      # Store x axis title
+      xAxisTitle <- "Day of the Year"
+      
+      # Store order of x axis values. In this case, it is the month and day.
+      orderArray <- dataMatrix$monthday
+      
+      # Arrange the historical average and standard deviation datasets in calendar order (need to do this because monthday is a character and the default is to go in alphabetical order)
+      histAvgData <- histAvgData %>% 
+        arrange(match(monthday, orderArray))
+      
+      histSDData <- histSDData %>% 
+        arrange(match(monthday, orderArray))
+      
+      # If "Monthly" timescale is chosen, the pertinent time column is the month abbreviation, "monthAbb".
+    } else if(input$input.timescale == "Monthly") {
+      
+      # Set timescale
+      timescale <- "monthAbb"
+      
+      # Widen data to accommodate year-by-year plotting
+      dataMatrix <- data %>% 
+        arrange(year) %>% 
+        pivot_wider(id_cols = "month", names_from = "year", values_from = varAbv) %>% 
+        arrange(month) %>% 
+        mutate(monthAbb = month.abb[month], .after = month)
+      
+      # Store x axis title
+      xAxisTitle <- "Month of the Year"
+      
+      # Store order of x axis values. In this case, it is the month abbreviation
+      orderArray <- month.abb
+      
+      # Create month abbreviation column in histAvgs (PLACE IN metdatafetch.R LATER)
+      histAvgData <- histAvgData%>% 
+        mutate(monthAbb = month.abb[month], .after = month)
+      
+      # If "Seasonal" timescale is chosen, the pertinent time column is the name of the season, "season".
+    } else if(input$input.timescale == "Seasonal") {
+      
+      # Set timescale
+      timescale <- "season"
+      
+      # Store desired order of the seasons
+      seasonOrder <- c("Winter", "Spring", "Summer", "Autumn")
+      
+      # Widen data to accommodate year-by-year plotting
+      dataMatrix <- data %>% 
+        arrange(year) %>% 
+        pivot_wider(id_cols = "season", names_from = "year", values_from = varAbv) %>% 
+        arrange(match(season, seasonOrder))
+      
+      # Store x axis title
+      xAxisTitle <- "Austral Season of the Year"
+      
+      # Store order of x axis values. In this case, it is the order of the seasons. 
+      orderArray <- seasonOrder
+      
+      # Arrange histAvgs entries in the following order: Winter, Spring, Summer, Autumn
+      histAvgData <- histAvgData %>% 
+        arrange(match(season, seasonOrder))
+    }
+    
+    # Wait until dataMatrix, histAvgData, and histSDData are loaded to proceed
+    req(nrow(dataMatrix) > 0)
+    req(nrow(histAvgData) > 0)
+    req(nrow(histSDData) > 0)
+    
+    # Create Plot
+    plot_ly() %>%
+      
+      # Add a line trace for 3σ above historical average
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] + 3*histSDData[[varAbv]],
+                type = "scatter", 
+                mode = "lines",
+                line = list(color = 'transparent'),
+                name = "3σ above historical average",
+                showlegend = FALSE,
+                hovertemplate = '%{y}') %>%
+      
+      # Add a line trace for 3σ below historical average
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] - 3*histSDData[[varAbv]],
+                type = "scatter", 
+                mode = "lines", 
+                fill = "tonexty", fillcolor='rgba(0,100,120,0.2)', line = list(color = 'transparent'),
+                name = "3σ below historical average",
+                showlegend = FALSE,
+                hovertemplate = '%{y}') %>%
+      
+      # Add a line trace for 2σ above historical average
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] + 2*histSDData[[varAbv]],
+                type = "scatter", 
+                mode = "lines",
+                line = list(color = 'transparent'),
+                name = "2σ above historical average",
+                showlegend = FALSE,
+                hovertemplate = '%{y}') %>%
+      
+      # Add a line trace for 2σ below historical average
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] - 2*histSDData[[varAbv]],
+                type = "scatter", 
+                mode = "lines", 
+                fill = "tonexty", fillcolor='rgba(0,100,100,0.2)', line = list(color = 'transparent'),
+                name = "2σ below historical average",
+                showlegend = FALSE,
+                hovertemplate = '%{y}') %>%
+      
+      # Add a line trace for 1σ above historical average
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] + histSDData[[varAbv]],
+                type = "scatter", 
+                mode = "lines", 
+                line = list(color = 'transparent'),
+                name = "1σ above historical average",
+                showlegend = FALSE,
+                hovertemplate = '%{y}') %>%
+      
+      # Add a line trace for 1σ below historical average
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]] - histSDData[[varAbv]],
+                type = "scatter", 
+                mode = "lines", 
+                fill = "tonexty", fillcolor='rgba(0,100,80,0.2)', line = list(color = 'transparent'),
+                name = "1σ below historical average",
+                showlegend = FALSE,
+                hovertemplate = '%{y}') %>%
+      
+      # Add a line trace for the historical average of the chosen variable over the chosen timescale
+      add_trace(x = histAvgData[[timescale]],
+                y = histAvgData[[varAbv]],
+                type = "scatter", 
+                line = list(color="black"),
+                mode = "lines", 
+                name = str_glue("Historical Average \n(n = {nVal} years)"),
+                hovertemplate = '%{y}') %>% 
+      
+      # Add a line trace for the chosen variable over the chosen timescale during the year of choice
+      add_trace(x = dataMatrix[[timescale]],
+                y = dataMatrix[[chosenYear]],
+                type = "scatter", 
+                text = round(
+                  (dataMatrix[[chosenYear]] - histAvgData[[varAbv]])
+                  /histSDData[[varAbv]], 2),
+                mode = "lines",
+                line = list(color="brown"),
+                name = chosenYear,
+                hovertemplate = '%{y}, %{text}σ from the historical average') %>% 
+      
+      # Set plot, xaxis, and yaxis titles. Show legend. Create hover popup.
+      layout(title = title,
+             xaxis = list(title = xAxisTitle,
+                          type = "category",
+                          categoryorder = "array",
+                          categoryarray = orderArray),
+             yaxis = list(title = varAxis),
+             legend = list(text = "Chosen Year"),
+             margin = list(l = 70, 
+                           r = 50, 
+                           t = 50, 
+                           b = 70),
+             hovermode = "x unified"
+      )
+    
+  })
+  
+  # Render helper text
+  output$historicalPlotText <- renderText({
+    "The historical plot compares the selected year's data to the historical average. Shaded areas represent 1, 2, and 3 
+    standard deviations (σ) from the mean. Navigate, download, or reset the plot using the tools in the upper righthand 
+    corner. Click and drag to zoom in."
+  })
+  
+  ###### Wind Rose Plot ######
+  output$windRosePlot <- renderPlot({
+    
+    # Store data
+    data <- baseData()
+    
+    # Ensure data is loaded and contains required columns
+    req(nrow(data) > 0, "wspd_ms" %in% colnames(data), "wdir_deg" %in% colnames(data))
+    
+    # Store variable abbreviation
+    varAbv <- varAbv()
+    
+    # Store variable actual name
+    varName <- input$input.varName
+    
+    # Store met name
+    metName <- input$input.met
+    
+    # Create title from varName and metName
+    title <- str_glue("Wind Speed and Direction at {metName}")
+    
+    # Create Wind Rose Plot
+    windrose(
+      speed = data$wspd_ms,
+      direction = data$wdir_deg,
+      col_pal = "YlGnBu",
+      legend_title = "Wind Speed (m/s)")+
+      theme_bw()+
+      labs(title = title,
+           y = "Proportion",
+           x = NULL)+
+      theme(plot.title = element_text(size = 16, hjust = 0.5))
+    
+  })
+  
+  # Render helper text
+  output$windRosePlotText <- renderText({
+    "The wind rose plot is presented as an aggregate of the entire record. Unlike other plot types, it does not allow for user interaction."
+  })
+  
 }
 
 
