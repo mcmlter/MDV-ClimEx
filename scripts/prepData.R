@@ -131,6 +131,11 @@ advDataPull <- function(metAbv) {
   # Get general entity info
   entityInfo <- getEntityInfo(metAbv)
   
+  # Create data directory if there is not already one
+  if (!file.exists("data")) {
+    dir.create(file.path("data"))
+  }
+  
   # Create data/met directory if there is not already one
   if (!file.exists("data/met")) {
     dir.create(file.path("data/met"))
