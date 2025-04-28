@@ -208,8 +208,10 @@ advDataPull <- function(metAbv) {
       mutate(yearseason = str_c(season, year, sep = " "),
              .after = "season")
     
-    # Store full daily dataset as met.daily.csv
-    write_csv(data, str_glue("data/met/{metAbv}/{metAbv}.daily.csv"))
+    # Store full daily dataset as metAbv.daily.csv
+    write_csv(data, str_glue("data/met/{metAbv}/{metAbv}.Daily.csv"))
+    
+    ####### Monthly Data #######
     
     # Aggregate over the month
     monthlyData <- data %>%
@@ -217,10 +219,91 @@ advDataPull <- function(metAbv) {
       summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE))) # numerical data starts at column 11
     
     # Replace a NaN values with NA
-    monthlyData[is.nan(monthlyData)] <- NA
+    monthlyData <- monthlyData %>%
+      mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .)))
     
-    # Store monthly-averaged data frame as variable.monthly.csv
-    write_csv(monthlyData, str_glue("{varDir}/{metAbv}.{var}.monthly.csv"))
+    # Store monthly-averaged data frame as metAbv.monthly.csv
+    write_csv(monthlyData, str_glue("data/met/{metAbv}/{metAbv}.Monthly.csv"))
+    
+    ####### Seasonal Data #######
+    
+    # Aggregate over the season
+    seasonalData <- data %>% 
+      group_by(year, season, yearseason) %>% 
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE))) # numerical data starts at column 11
+    
+    # Replace a NaN values with NA
+    seasonalData <- seasonalData %>%
+      mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .)))
   
+    # Store seasonally-averaged data frame as metAbv.seasonal.csv
+    write_csv(seasonalData, str_glue("data/met/{metAbv}/{metAbv}.Seasonal.csv"))
+    
+    ####### Historical Averages and Standard Deviations #######
+    
+    # Process and Store Daily Historical Averages as met.dailyHistAvg.csv
+    dailyHistAvg <- data %>%
+      group_by(monthday) %>% 
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)))
+    write_csv(dailyHistAvg, str_glue("data/met/{metAbv}/{metAbv}.DailyHistAvg.csv"))
+    
+    # Process and Store Daily Standard Deviations as met.dailyHistSD.csv
+    dailyHistSD <- data %>%
+      group_by(monthday) %>% 
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)))
+    write_csv(dailyHistSD, str_glue("data/met/{metAbv}/{metAbv}.DailyHistSD.csv"))
+    
+    # Process and Store Monthly Historical Averages as met.monthlyHistAvg.csv
+    monthlyHistAvg <- data %>%
+      group_by(month) %>% 
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)))
+    write_csv(monthlyHistAvg, str_glue("data/met/{metAbv}/{metAbv}.MonthlyHistAvg.csv"))
+    
+    # Process and Store Monthly Standard Deviations as met.monthlyHistSD.csv
+    monthlyHistSD <- data %>%
+      group_by(month) %>% 
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)))
+    write_csv(monthlyHistSD, str_glue("data/met/{metAbv}/{metAbv}.MonthlyHistSD.csv"))
+    
+    # Process and Store Seasonal Historical Averages as met.monthlyHistAvg.csv
+    seasonalHistAvg <- data %>%
+      group_by(season) %>% 
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)))
+    write_csv(seasonalHistAvg, str_glue("data/met/{metAbv}/{metAbv}.SeasonalHistAvg.csv"))
+    
+    # Process and Store Seasonal Standard Deviations as met.monthlyHistSD.csv
+    seasonalHistSD <- data %>%
+      group_by(season) %>% 
+      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)))
+    write_csv(seasonalHistSD, str_glue("data/met/{metAbv}/{metAbv}.SeasonalHistSD.csv"))
+    
   }
+}
+
+##### Daily Iterative Data Check/Pull Protocol #####
+
+# Check each data entity to make sure if it is the latest. If not the latest, pull the latest data entity from EDI. To be run once daily. 
+
+
+# Series of all possible Met Station 4-letter abbreviations
+metAbvs = c(
+  "CAAM",
+  "COHM",
+  "EXEM",
+  "FRSM",
+  "HODM",
+  "BOYM",
+  "BRHM",
+  "FRLM",
+  "HOEM",
+  "VAAM",
+  "VIAM",
+  "MISM",
+  "FLMM",
+  "TARM"
+)
+
+# Run advDataPull for all met stations in metAbvs
+for (met in metAbvs) {
+  advDataPull(met)
 }

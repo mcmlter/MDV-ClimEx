@@ -409,7 +409,7 @@ advDataPull <- function(metAbv) {
         # Rename the summaryVal column as the variable of the current loop
         colnames(dailyHist)[colnames(dailyHist)=="summaryVal"] <- var
         
-        # Store seasonally-averaged data frame as variable.seasonal.csv
+        # Store daily-averaged data frame as variable.dailyHist.csv
         write_csv(dailyHist, str_glue("{varDir}/{metAbv}.{var}.dailyHist.csv"))
         
         # Monthly Historical Averages
@@ -421,7 +421,7 @@ advDataPull <- function(metAbv) {
         # Rename the summaryVal column as the variable of the current loop
         colnames(monthlyHist)[colnames(monthlyHist)=="summaryVal"] <- var
         
-        # Store seasonally-averaged data frame as variable.seasonal.csv
+        # Store monthly-averaged data frame as variable.monthlyHist.csv
         write_csv(monthlyHist, str_glue("{varDir}/{metAbv}.{var}.monthlyHist.csv"))
         
         # Seasonal Historical Averages
