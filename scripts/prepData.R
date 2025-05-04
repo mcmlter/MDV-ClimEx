@@ -162,7 +162,7 @@ advDataPull <- function(metAbv) {
     
     # Get the entityID from the daily dataset
     entityId <- read_data_entity_names(entityInfo$packageID) %>% 
-      filter(grepl("daily", entityName, ignore.case = TRUE)) %>%
+      filter(grepl("high-frequency", entityName, ignore.case = TRUE)) %>%
       pull(entityId)
     
     # Import daily dataset from specified met station
@@ -174,6 +174,74 @@ advDataPull <- function(metAbv) {
     
     
     ###### Processing Data ######
+    
+    ####### Daily Data #######
+    
+    # Parse date_time column into plain date by removing the hours and minutes using gsub. ymd_hms() returns NA for every midnight entry
+    data <- data %>% 
+      mutate(date_time = gsub("\\ .*", "", date_time))
+    
+    # Create blank dataframe of days to append each variable's data to
+    newData <- data %>% 
+      select(dataset_code,
+             metlocid,
+             date_time) %>% 
+      distinct(date_time, .keep_all = TRUE)
+    
+    # Iterate through the columns and process each variable separately, appending it to newData when complete
+    for (variable in colnames(data)[sapply(data, is.numeric)]) {
+      
+      # Select the data from the iterated variable
+      # Wind direction relies on wind speed, so handle separately
+      if (variable == "wdir_deg") { 
+        varData <- data %>% 
+          select(date_time,
+                 wdir_deg,
+                 wspd_ms)
+      } else {
+        varData <- data %>% 
+          select(date_time, all_of(variable))
+      }
+      
+      # Remove days that have more than 10% of the data missing (Need Citation)
+      varData <- varData %>%
+        group_by(date_time) %>%
+        summarise(naCount = sum(is.na(.data[[variable]])),
+                  entryCount = n(),
+                  naProp = naCount/entryCount) %>%
+        select(date_time, naProp) %>%
+        right_join(varData, by = "date_time") %>%
+        filter(naProp < 0.1) %>%
+        select(!naProp)
+      
+      # Create daily summaries of the mean value of each variable over the day
+      # Handle wind direction calculations separately
+      if (variable == "wdir_deg") {
+        # Filter for rows with non-missing wspd values
+        varData <- varData %>%
+          filter(!is.na(.data$wspd_ms))
+        
+        # Calculate resultant vector average wind direction according to Grange 2014
+        varData <- varData %>%
+          group_by(date_time) %>%
+          summarize(
+            wdir_u = mean(-wspd_ms * sin(2 * pi * wdir_deg/360), na.rm = TRUE),
+            wdir_v = mean(-wspd_ms * cos(2 * pi * wdir_deg/360), na.rm = TRUE)) %>%
+          mutate(wdir_deg = (atan2(wdir_u, wdir_v) * 360/2/pi) + 180)
+      } else {
+        varData <- varData %>%
+          group_by(date_time) %>% 
+          summarise(across(where(is.numeric), mean, na.rm = TRUE))
+      }
+      
+      newData <- newData %>% 
+        left_join(varData, by = "date_time")
+      
+    }
+    
+    # Replace data with newData, parse date_time column
+    data <- newData %>% 
+      mutate(date_time = ymd(date_time))
     
     # Add year, month, yearmonth, and season columns.
     # Season definitions provided by Obryk et al. 2020
@@ -202,6 +270,7 @@ advDataPull <- function(metAbv) {
       # Create "yearseason" column, a column with the season name and the year for each entry
       mutate(yearseason = str_c(season, year, sep = " "),
              .after = "season")
+    
     
     # Store full daily dataset as metAbv.daily.csv
     write_csv(data, str_glue("data/met/{metAbv}/{metAbv}.Daily.csv"))
