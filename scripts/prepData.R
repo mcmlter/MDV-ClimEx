@@ -20,6 +20,7 @@ rm(list=ls(all=TRUE))
 library(tidyverse)
 library(EDIutils)
 library(zoo)
+library(purrr)
 
 
 #### PART 1 ####
@@ -177,128 +178,137 @@ advDataPull <- function(metAbv) {
     
     ####### Daily Data #######
     
-    # Parse date_time column into plain date by removing the hours and minutes using gsub. ymd_hms() returns NA for every midnight entry
+    # Parse date_time column into plain date by removing the hours and minutes using gsub, then parse into datetime format using ymd()
     data <- data %>% 
-      mutate(date_time = gsub("\\ .*", "", date_time))
+      mutate(date_time = ymd(gsub("\\ .*", "", date_time)))
     
-    # Create blank dataframe of days to append each variable's data to
-    newData <- data %>% 
-      select(dataset_code,
-             metlocid,
-             date_time) %>% 
-      distinct(date_time, .keep_all = TRUE)
-    
-    # Iterate through the columns and process each variable separately, appending it to newData when complete
-    for (variable in colnames(data)[sapply(data, is.numeric)]) {
-      
-      # Select the data from the iterated variable
-      # Wind direction relies on wind speed, so handle separately
-      if (variable == "wdir_deg") { 
-        varData <- data %>% 
-          select(date_time,
-                 wdir_deg,
-                 wspd_ms)
-      } else {
-        varData <- data %>% 
-          select(date_time, all_of(variable))
-      }
-      
-      # Remove days that have more than 10% of the data missing (Need Citation)
-      varData <- varData %>%
-        group_by(date_time) %>%
-        summarise(naCount = sum(is.na(.data[[variable]])),
-                  entryCount = n(),
-                  naProp = naCount/entryCount) %>%
-        select(date_time, naProp) %>%
-        right_join(varData, by = "date_time") %>%
-        filter(naProp < 0.1) %>%
-        select(!naProp)
-      
-      # Create daily summaries of the mean value of each variable over the day
-      # Handle wind direction calculations separately
+    # Create a function to process each variable
+    process_variable <- function(data, variable) {
+      # Handle wind direction separately
       if (variable == "wdir_deg") {
-        # Filter for rows with non-missing wspd values
-        varData <- varData %>%
-          filter(!is.na(.data$wspd_ms))
+        varData <- data %>%
+          select(date_time, wdir_deg, wspd_ms)
         
-        # Calculate resultant vector average wind direction according to Grange 2014
+        # Calculate the proportion of missing data per day
         varData <- varData %>%
           group_by(date_time) %>%
-          summarize(
-            wdir_u = mean(-wspd_ms * sin(2 * pi * wdir_deg/360), na.rm = TRUE),
-            wdir_v = mean(-wspd_ms * cos(2 * pi * wdir_deg/360), na.rm = TRUE)) %>%
-          mutate(wdir_deg = (atan2(wdir_u, wdir_v) * 360/2/pi) + 180)
-      } else {
+          mutate(
+            naCount_wdir = sum(is.na(wdir_deg)),
+            naCount_wspd = sum(is.na(wspd_ms)),
+            entryCount = n(),
+            naProp_wdir = naCount_wdir / entryCount,
+            naProp_wspd = naCount_wspd / entryCount
+          ) %>%
+          ungroup()
+        
+        # Apply the 10% missing data rule for both variables
         varData <- varData %>%
-          group_by(date_time) %>% 
-          summarise(across(where(is.numeric), mean, na.rm = TRUE))
+          mutate(
+            wdir_deg = ifelse(naProp_wdir > 0.1 | naProp_wspd > 0.1, NA, wdir_deg),
+            wspd_ms = ifelse(naProp_wdir > 0.1 | naProp_wspd > 0.1, NA, wspd_ms)
+          ) %>%
+          select(date_time, wdir_deg, wspd_ms)
+        
+        # Calculate resultant vector average wind direction
+        varData <- varData %>%
+          filter(!is.na(wspd_ms)) %>%
+          group_by(date_time) %>%
+          summarise(
+            wdir_u = mean(-wspd_ms * sin(2 * pi * wdir_deg / 360), na.rm = TRUE),
+            wdir_v = mean(-wspd_ms * cos(2 * pi * wdir_deg / 360), na.rm = TRUE),
+            wdir_deg = (atan2(wdir_u, wdir_v) * 360 / (2 * pi)) + 180,
+            .groups = "drop"
+          ) %>%
+          select(date_time, wdir_deg)
+        
+        return(varData)
+      } else {
+        # General numeric variable processing
+        varData <- data %>%
+          group_by(date_time) %>%
+          summarise(
+            naProp = mean(is.na(.data[[variable]])),
+            mean_value = ifelse(naProp > 0.1, NA, mean(.data[[variable]], na.rm = TRUE)),
+            .groups = "drop"
+          ) %>%
+          select(date_time, !!variable := mean_value)
+        
+        return(varData)
       }
-      
-      newData <- newData %>% 
-        left_join(varData, by = "date_time")
-      
     }
     
-    # Replace data with newData, parse date_time column
-    data <- newData %>% 
-      mutate(date_time = ymd(date_time))
+    # Identify numeric columns to process
+    numeric_vars <- colnames(data)[sapply(data, is.numeric)]
     
-    # Add year, month, yearmonth, and season columns.
-    # Season definitions provided by Obryk et al. 2020
-    data <- data %>% 
-      mutate(year = year(date_time),
-             month = month(date_time),
-             yearmonth = as.yearmon(date_time),
-             season = case_when(month %in% c(11, 12, 1, 2) ~ "Summer",     # Nov-Feb
-                                month %in% c(3) ~ "Autumn",                # Mar
-                                month %in% c(4, 5, 6, 7, 8, 9) ~ "Winter", # Apr-Sep
-                                month %in% c(10) ~ "Spring"),              # Oct
-             .after = "date_time")
+    # Process all variables and store results as a list of data frames
+    results_list <- map(
+      numeric_vars,
+      ~ process_variable(data, .x)
+    )
     
-    # Create "fakedate" column, a column with the dates correct except the year is 2020. Helps plot multiple years on the same x axis.
-    data <- data %>%
-      mutate(fakedate = update(date_time, year = 2020),
-             .after = "date_time")
+    # Merge results into a single data frame with one row per date
+    dailyData <- reduce(
+      results_list,
+      left_join,
+      by = "date_time"
+    )
     
-    # Create special plotting columns for x axis labeling
-    data <- data %>% 
-      
-      # Create "monthday" column, a column with the month abbreviation and the day of the month for each entry
-      mutate(monthday = str_c(month.abb[month], day(date_time), sep = " "),
-             .before = "season") %>% 
-      
-      # Create "yearseason" column, a column with the season name and the year for each entry
-      mutate(yearseason = str_c(season, year, sep = " "),
-             .after = "season")
+    # Add metadata columns back to the final data
+    dailyData <- data %>%
+      select(dataset_code, metlocid, date_time) %>%
+      distinct(date_time, .keep_all = TRUE) %>%
+      left_join(dailyData, by = "date_time")
+    
+    # Add time-related specifier columns
+    dailyData <- dailyData %>%
+      mutate(
+        year = year(date_time),
+        month = month(date_time),
+        yearmonth = as.yearmon(date_time),
+        season = case_when(
+          month %in% c(11, 12, 1, 2) ~ "Summer",     # Nov-Feb
+          month %in% c(3) ~ "Autumn",                # Mar
+          month %in% c(4, 5, 6, 7, 8, 9) ~ "Winter", # Apr-Sep
+          month %in% c(10) ~ "Spring"                # Oct
+        ),
+        fakedate = update(date_time, year = 2020),
+        monthday = str_c(month.abb[month], day(date_time), sep = " "),
+        yearseason = str_c(season, year, sep = " "),
+        .after = "date_time"
+      )
     
     
     # Store full daily dataset as metAbv.daily.csv
-    write_csv(data, str_glue("data/met/{metAbv}/{metAbv}.Daily.csv"))
+    write_csv(dailyData, str_glue("data/met/{metAbv}/{metAbv}.Daily.csv"))
     
     ####### Monthly Data #######
     
-    # Aggregate over the month
-    monthlyData <- data %>%
+    # Monthly Processing Using Cleaned Daily Data
+    monthlyData <- dailyData %>%
       group_by(year, month, yearmonth) %>%
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop") # numerical data starts at column 11
-    
-    # Replace a NaN values with NA
-    monthlyData <- monthlyData %>%
-      mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .)))
+      summarise(
+        across(
+          where(is.numeric),
+          ~ ifelse(mean(is.na(.)) > 0.1, NA, mean(., na.rm = TRUE))
+        ),
+        .groups = "drop"
+      )
     
     # Store monthly-averaged data frame as metAbv.monthly.csv
     write_csv(monthlyData, str_glue("data/met/{metAbv}/{metAbv}.Monthly.csv"))
     
     ####### Seasonal Data #######
     
-    # Aggregate over the season
-    seasonalData <- data %>% 
-      group_by(year, season, yearseason) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop") # numerical data starts at column 11
-    
-    # Replace a NaN values with NA
-    seasonalData <- seasonalData %>%
-      mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .)))
+    # Monthly Processing Using Cleaned Daily Data
+    seasonalData <- dailyData %>%
+      group_by(year, season, yearseason) %>%
+      summarise(
+        across(
+          where(is.numeric),
+          ~ ifelse(mean(is.na(.)) > 0.1, NA, mean(., na.rm = TRUE))
+        ),
+        .groups = "drop") %>% 
+      select(-month)
     
     # Store seasonally-averaged data frame as metAbv.seasonal.csv
     write_csv(seasonalData, str_glue("data/met/{metAbv}/{metAbv}.Seasonal.csv"))
@@ -306,39 +316,45 @@ advDataPull <- function(metAbv) {
     ####### Historical Averages and Standard Deviations #######
     
     # Process and Store Daily Historical Averages as met.dailyHistAvg.csv
-    dailyHistAvg <- data %>%
+    dailyHistAvg <- dailyData %>%
       group_by(monthday) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop")
+      summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE)), .groups = "drop") %>% 
+      select(-year, -month)
     write_csv(dailyHistAvg, str_glue("data/met/{metAbv}/{metAbv}.DailyHistAvg.csv"))
     
     # Process and Store Daily Standard Deviations as met.dailyHistSD.csv
-    dailyHistSD <- data %>%
+    dailyHistSD <- dailyData %>%
       group_by(monthday) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)), .groups = "drop")
+      summarise(across(where(is.numeric), ~sd(.x, na.rm = TRUE)), .groups = "drop")%>% 
+      select(-year, -month)
     write_csv(dailyHistSD, str_glue("data/met/{metAbv}/{metAbv}.DailyHistSD.csv"))
     
     # Process and Store Monthly Historical Averages as met.monthlyHistAvg.csv
-    monthlyHistAvg <- data %>%
+    monthlyHistAvg <- monthlyData %>%
       group_by(month) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop")
+      summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE)), .groups = "drop") %>% 
+      select(-year)
     write_csv(monthlyHistAvg, str_glue("data/met/{metAbv}/{metAbv}.MonthlyHistAvg.csv"))
     
     # Process and Store Monthly Standard Deviations as met.monthlyHistSD.csv
-    monthlyHistSD <- data %>%
+    monthlyHistSD <- monthlyData %>%
       group_by(month) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)), .groups = "drop")
+      summarise(across(where(is.numeric), ~sd(.x, na.rm = TRUE)), .groups = "drop") %>% 
+      select(-year)
     write_csv(monthlyHistSD, str_glue("data/met/{metAbv}/{metAbv}.MonthlyHistSD.csv"))
     
     # Process and Store Seasonal Historical Averages as met.monthlyHistAvg.csv
-    seasonalHistAvg <- data %>%
+    seasonalHistAvg <- seasonalData %>%
       group_by(season) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~mean(.x, na.rm = TRUE)), .groups = "drop")
+      summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE)), .groups = "drop")%>% 
+      select(-year)
     write_csv(seasonalHistAvg, str_glue("data/met/{metAbv}/{metAbv}.SeasonalHistAvg.csv"))
     
     # Process and Store Seasonal Standard Deviations as met.monthlyHistSD.csv
-    seasonalHistSD <- data %>%
+    seasonalHistSD <- seasonalData %>%
       group_by(season) %>% 
-      summarise(across(all_of(colnames(data)[11:ncol(data)]), ~sd(.x, na.rm = TRUE)), .groups = "drop")
+      summarise(across(where(is.numeric), ~sd(.x, na.rm = TRUE)), .groups = "drop")%>% 
+      select(-year)
     write_csv(seasonalHistSD, str_glue("data/met/{metAbv}/{metAbv}.SeasonalHistSD.csv"))
   }
 }
