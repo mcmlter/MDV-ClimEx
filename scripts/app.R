@@ -30,7 +30,7 @@ ui <- fluidPage(
   
   # Application Theme
   theme = bslib::bs_theme(
-    bootswatch = "superhero"),
+    bootswatch = "darkly"),
   # Application Title
   titlePanel(title = div(img(src = "https://mcm.lternet.edu/sites/default/files/MCM_bigger_better_white.png", height="5%", width = "5%"), "ClimEx Data Viewer")),
   helpText("McMurdo Dry Valleys LTER Climate Extremes Data Viewer"),
@@ -215,52 +215,60 @@ server <- function(input, output) {
   # Table of possible variables, their laynames, and their laynames with units
   varMatchTable <- data.frame(vars = c("airtemp_1m_degc",
                                        "airtemp_3m_degc",
+                                       "bpress_mb",
+                                       "rhh2o_3m_pct",
+                                       "par_umolm2s1",
                                        "swradin_wm2",
                                        "swradout_wm2",
-                                       "rhh2o_3m_pct",
-                                       "wspd_ms",
-                                       "wdir_deg",
                                        "lwradin2_wm2",
                                        "lwradout2_wm2",
-                                       "par_umolm2s1",
+                                       "wspd_ms",
+                                       "wdir_deg",
                                        "soiltemp1_0cm_degc",
-                                       "soiltemp1_5cm_degc", # Use soiltemp1 or soiltemp 2?
+                                       "soiltemp1_5cm_degc",
                                        "soiltemp1_10cm_degc",
-                                       "bpress_mb"),
+                                       "soilvwc_5cm_m3m3",
+                                       "soilvwc_10cm_m3m3"),
                               namesPlain = c("Air Temperature at 1m",
                                              "Air Temperature at 3m",
+                                             "Atmospheric Pressure",
+                                             "Relative Humidity at 3m",
+                                             "Photosynthetically Active Radiation",
                                              "Incoming Shortwave Radiation",
                                              "Outgoing Shortwave Radiation",
-                                             "Relative Humidity at 3m",
-                                             "Wind Speed",
-                                             "Wind Direction",
                                              "Incoming Longwave Radiation",
                                              "Outgoing Longwave Radiation",
-                                             "Photosynthetically Active Radiation",
+                                             "Wind Speed",
+                                             "Wind Direction",
                                              "Soil Temperature at 0cm Depth",
                                              "Soil Temperature at 5cm Depth",
                                              "Soil Temperature at 10cm Depth",
-                                             "Atmospheric Pressure"),
+                                             "Soil volumetric water content at 5 cm depth",
+                                             "Soil volumetric water content at 10 cm depth"),
                               namesUnits = c("Air Temperature (°C) at 1m",
                                              "Air Temperature (°C) at 3m",
+                                             "Atmospheric Pressure (mb)",
+                                             "Relative Humidity (%) at 3m",
+                                             "Photosynthetically Active Radiation (W/m^2)",
                                              "Incoming Shortwave Radiation (W/m^2)",
                                              "Outgoing Shortwave Radiation (W/m^2)",
-                                             "Relative Humidity (%) at 3m",
-                                             "Wind Speed (m/s)",
-                                             "Wind Direction (° from north)",
                                              "Incoming Longwave Radiation (W/m^2)",
                                              "Outgoing Longwave Radiation (W/m^2)	",
-                                             "Photosynthetically Active Radiation (W/m^2)",
+                                             "Wind Speed (m/s)",
+                                             "Wind Direction (° from north)",
                                              "Soil Temperature at 0cm Depth (°C)",
                                              "Soil Temperature at 5cm Depth (°C)",
                                              "Soil Temperature at 10cm Depth (°C)",
-                                             "Atmospheric Pressure (mb)")
+                                             "Soil volumetric water content at 5 cm depth (m^3/m^3)",
+                                             "Soil volumetric water content at 10 cm depth (m^3/m^3)"
+                                             )
                               
   )
   
   # Replace units with LaTeX format for plotly
   varMatchTable$namesUnits <- sapply(varMatchTable$namesUnits, function(name) {
     gsub("(W/m\\^2)", "W*m<sup>-2</sup>", name)
+    gsub("(m\\^3/m\\^3)", "m<sup>3</sup>/m<sup>3</sup>", name)
   })
   
   ##### Reactive Functions #####
