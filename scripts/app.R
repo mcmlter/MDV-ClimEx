@@ -23,11 +23,12 @@ library(tidyverse)
 library(zoo)
 library(EDIutils)
 library(plotly)
-library(clifro)
+library(openair)
+library(shinyjs)
 
 # Define UI for application
 ui <- fluidPage(
-  
+  useShinyjs(),
   # Application Theme
   theme = bslib::bs_theme(
     bootswatch = "darkly"),
@@ -53,13 +54,12 @@ ui <- fluidPage(
                                                      "Taylor Glacier"),
                                  "High Altitude Sites" = c("Friis Hills",
                                                            "Mount Fleming"))),
-      selectInput(inputId = "input.timescale", "Timescale",
-                  choices = c("Daily",
-                              "Monthly",
-                              "Seasonal")),
       radioButtons(inputId = "input.plotType", "Plot Type",
                    choices = c("Standard",
                                "Historical Comparison")),
+      div(id = "timescaleDropdown",
+          selectInput(inputId = "input.timescale", "Timescale",
+                      choices = c("Daily", "Monthly", "Seasonal"))),
       selectInput(inputId = "input.variable", "Variable of Interest", 
                   choices = NULL),
       tabsetPanel(id = "plotSpecs",
@@ -117,7 +117,7 @@ ui <- fluidPage(
 
 
 #### Define server logic ####
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   
   ##### Functions #####
@@ -347,6 +347,8 @@ server <- function(input, output) {
     
     return(years)
   })
+
+
   
   ##### Event Observations #####
   
@@ -357,17 +359,14 @@ server <- function(input, output) {
     
   })
   
-  # Update plot types to include wind rose when wind variables (speed or direction) are chosen
+  # Update the radio buttons to include Wind Rose based on the selected variable
   observeEvent(input$input.variable, {
-    if (input$input.variable == "Wind Direction" | input$input.variable == "Wind Speed") {
-      updateRadioButtons(inputId = "input.plotType", 
-                         choices = c("Standard",
-                                     "Historical Comparison",
-                                     "Wind Rose"))
+    if (input$input.variable %in% c("Wind Direction", "Wind Speed")) {
+      updateRadioButtons(session, "input.plotType",
+                         choices = c("Standard", "Historical Comparison", "Wind Rose"))
     } else {
-      updateRadioButtons(inputId = "input.plotType",
-                         choices = c("Standard",
-                                     "Historical Comparison"))
+      updateRadioButtons(session, "input.plotType",
+                         choices = c("Standard", "Historical Comparison"))
     }
   })
   
@@ -391,6 +390,17 @@ server <- function(input, output) {
     updateSelectInput(inputId = "input.chosenYear",
                       choices = uniqYears())
   })
+  
+  # Hide or show the timescale dropdown based on the plot type
+  observeEvent(input$input.plotType, {
+    if (input$input.plotType == "Wind Rose") {
+      updateSelectInput(session, "input.timescale", selected = "Daily")
+      hide("timescaleDropdown")  # Hide the timescale dropdown
+    } else {
+      show("timescaleDropdown")  # Show the timescale dropdown
+    }
+  })
+
   
   ##### Render Plots #####
   
@@ -750,16 +760,14 @@ server <- function(input, output) {
     title <- str_glue("Wind Speed and Direction at {metName}")
     
     # Create Wind Rose Plot
-    windrose(
-      speed = data$wspd_ms,
-      direction = data$wdir_deg,
-      col_pal = "YlGnBu",
-      legend_title = "Wind Speed (m/s)")+
-      theme_bw()+
-      labs(title = title,
-           y = "Proportion",
-           x = NULL)+
-      theme(plot.title = element_text(size = 16, hjust = 0.5))
+    windRose(
+      data,
+      ws = "wspd_ms",
+      wd = "wdir_deg",
+      paddle = F,
+      border = T,
+      main = title
+      )
     
   })
   
