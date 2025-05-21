@@ -263,9 +263,9 @@ server <- function(input, output, session) {
   })
   
   ##### Reactive Functions #####
-  # Get variables contained in the file of the chosen parameter suite of the chosen met station
+  # Get variables contained in the file of the chosen met station
   
-  # Read in the base data CSV of the corresponding met-parameter combination
+  # Read in the base data CSV of the corresponding met-variable combination
   baseData <- reactive({
     met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
@@ -275,7 +275,7 @@ server <- function(input, output, session) {
     return(data)
   })
   
-  # Read in the historical average data CSV of the corresponding met-parameter combination
+  # Read in the historical average data CSV of the corresponding met-variable combination
   histAvgData <- reactive({
     met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
@@ -285,7 +285,7 @@ server <- function(input, output, session) {
     return(data)
   })
   
-  # Read in the historical standard deviation CSV of the corresponding met-parameter combination
+  # Read in the historical standard deviation CSV of the corresponding met-variable combination
   histSDData <- reactive({
     met <- metMatchTable %>%  # Get met abbreviation from full name input's corresponding row in the match table
       filter(mets == input$input.met) %>% 
@@ -724,7 +724,7 @@ server <- function(input, output, session) {
   
   # Render helper text
   output$historicalPlotText <- renderText({
-    "The historical plot compares the selected year's data to the historical average. Shaded areas represent 1, 2, and 3 
+    "The historical plot compares the selected year's data to the historical average. Shaded areas denote ±1, ±2, and ±3 
     standard deviations (σ) from the mean. Navigate, download, or reset the plot using the tools in the upper righthand 
     corner. Click and drag to zoom in."
   })
