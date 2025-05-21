@@ -33,7 +33,7 @@ ui <- fluidPage(
   theme = bslib::bs_theme(
     bootswatch = "darkly"),
   # Application Title
-  titlePanel(title = div(img(src = "https://mcm.lternet.edu/sites/default/files/MCM_bigger_better_white.png", height="5%", width = "5%"), "ClimEx Data Viewer")),
+  titlePanel(title = div(img(src = "https://raw.githubusercontent.com/MCM-LTER/MCM-ClimEx/main/images/mcmlter_logo.png", height="5%", width = "5%"), "ClimEx Data Viewer")),
   helpText("McMurdo Dry Valleys LTER Climate Extremes Data Viewer"),
   
   sidebarLayout(
