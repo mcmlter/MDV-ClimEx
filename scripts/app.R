@@ -110,7 +110,7 @@ ui <- fluidPage(
   hr(),
   p("Funding for this work was provided by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term Ecological Research",  
     "(MCM LTER) program, most recently #OPP-1637708 and #OPP-2224760. ",
-    "Data are available in the ", a(href="https://mcm.lternet.edu/meteorology-data-sets", "MCM LTER Data Catalog."),
+    "Data are available in the ", a(href="https://mcm.lternet.edu/meteorology-data-sets", "Environmental Data Initiative."),
     "Source code is available on ", a(href="https://github.com/mcmlter/MDV-ClimEx", "GitHub."), align="left", style = "font-size:11px; color = white")
 )
 
