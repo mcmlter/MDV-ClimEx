@@ -110,8 +110,8 @@ ui <- fluidPage(
   hr(),
   p("Funding for this work was provided by several grants from the National Science Foundation to the McMurdo Dry Valleys Long Term Ecological Research",  
     "(MCM LTER) program, most recently #OPP-1637708 and #OPP-2224760. ",
-    "Data are available in the ", a(href="https://mcm.lternet.edu/meteorology-data-sets", "Environmental Data Initiative."),
-    "Source code is available on ", a(href="https://github.com/mcmlter/MDV-ClimEx", "GitHub."), align="left", style = "font-size:11px; color = white")
+    "Meteorological data are available in the ", a(href="https://mcm.lternet.edu/meteorology-data-sets", "Environmental Data Initiative."),
+    "MDV ClimEx source code is available via ", a(href="https://github.com/mcmlter/MDV-ClimEx", "GitHub."), align="left", style = "font-size:11px; color = white")
 )
 
 
@@ -258,8 +258,9 @@ server <- function(input, output, session) {
   
   # Replace units with LaTeX format for plotly
   varMatchTable$namesUnits <- sapply(varMatchTable$namesUnits, function(name) {
-    gsub("(W/m\\^2)", "W*m<sup>-2</sup>", name)
-    gsub("(m\\^3/m\\^3)", "m<sup>3</sup>/m<sup>3</sup>", name)
+    gsub("(m\\^3/m\\^3)", "m<sup>3</sup>/m<sup>3</sup>",
+    gsub("(W/m\\^2)", "W m<sup>-2</sup>", 
+    gsub("(μmol/m\\^2/s\\^1)", "μmol m<sup>-2</sup> s<sup>-1</sup>", name)))
   })
   
   ##### Reactive Functions #####
