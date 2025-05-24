@@ -20,7 +20,7 @@ authors:
     orcid: 'https://orcid.org/0000-0002-4986-7663'
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.15505329
+    value: 10.5281/zenodo.11663458
 url: 'https://mcmlter.org/MDV-ClimEx'
 license: GPL-3.0
 version: 3.0.0
